@@ -24,6 +24,10 @@
                             title="Verileri Yedekle">
                             💾 Yedekle
                         </button>
+                        <button class="btn btn-sm btn-ghost" style="color:white" onclick="showModal('passwordModal')"
+                            title="Şifre Değiştir">
+                            🔑 Şifre Değiştir
+                        </button>
                         <button class="btn btn-sm btn-ghost" style="color:white" onclick="Auth.logout()">
                             🚪 Çıkış
                         </button>
@@ -418,6 +422,34 @@
         </div>
     </div>
 
+    <!-- Şifre Değiştir Modal -->
+    <div id="passwordModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>🔑 Şifre Değiştir</h2>
+                <button class="modal-close" onclick="hideModal('passwordModal')">✕</button>
+            </div>
+            <form id="passwordForm" class="modal-body" onsubmit="handlePasswordUpdate(event)">
+                <div class="form-group">
+                    <label class="form-label">Mevcut Şifre</label>
+                    <input type="password" id="oldPassword" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Yeni Şifre</label>
+                    <input type="password" id="newPassword" class="form-input" minlength="4" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Yeni Şifre (Tekrar)</label>
+                    <input type="password" id="newPasswordConfirm" class="form-input" minlength="4" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="hideModal('passwordModal')">İptal</button>
+                    <button type="submit" class="btn btn-primary">Güncelle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="toast-container"></div>
 
     <script src="js/app.js"></script>
@@ -511,6 +543,27 @@
             if (section) section.classList.add('active');
 
             event.target.closest('.nav-link').classList.add('active');
+        }
+
+        function handlePasswordUpdate(event) {
+            event.preventDefault();
+            const oldPass = document.getElementById('oldPassword').value;
+            const newPass = document.getElementById('newPassword').value;
+            const newPassConfirm = document.getElementById('newPasswordConfirm').value;
+
+            if (newPass !== newPassConfirm) {
+                showToast('Yeni şifreler eşleşmiyor!', 'error');
+                return;
+            }
+
+            const result = Auth.updateAdminPassword(oldPass, newPass);
+            if (result.success) {
+                showToast(result.message);
+                hideModal('passwordModal');
+                document.getElementById('passwordForm').reset();
+            } else {
+                showToast(result.message, 'error');
+            }
         }
     </script>
     <style>

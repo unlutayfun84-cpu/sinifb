@@ -5,7 +5,7 @@
 const Auth = {
     // Admin girişi
     loginAsAdmin(password) {
-        if (password === CONFIG.ADMIN_PASSWORD) {
+        if (password === getAdminPassword()) {
             const user = {
                 type: 'admin',
                 name: 'Öğretmen',
@@ -15,6 +15,20 @@ const Auth = {
             return { success: true, user };
         }
         return { success: false, message: 'Şifre hatalı!' };
+    },
+
+    // Admin şifresini güncelle
+    updateAdminPassword(oldPassword, newPassword) {
+        if (oldPassword !== getAdminPassword()) {
+            return { success: false, message: 'Mevcut şifre hatalı!' };
+        }
+
+        if (newPassword.length < 4) {
+            return { success: false, message: 'Yeni şifre en az 4 karakter olmalıdır!' };
+        }
+
+        Storage.set(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, newPassword);
+        return { success: true, message: 'Şifre başarıyla güncellendi!' };
     },
 
     // Veli girişi

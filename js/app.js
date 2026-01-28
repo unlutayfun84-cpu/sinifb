@@ -4,8 +4,9 @@
 
 // Varsayılan Ayarlar
 const CONFIG = {
-    ADMIN_PASSWORD: 'ogretmen2026',
+    DEFAULT_ADMIN_PASSWORD: 'ogretmen2026',
     STORAGE_KEYS: {
+        ADMIN_PASSWORD: 'sinif_admin_sifre',
         STUDENTS: 'sinif_ogrenciler',
         ANNOUNCEMENTS: 'sinif_duyurular',
         PORTFOLIO: 'sinif_portfolyo',
@@ -16,6 +17,11 @@ const CONFIG = {
     },
     MAX_IMAGE_SIZE: 10 * 1024 * 1024 // 10MB
 };
+
+// Mevcut admin şifresini getir
+function getAdminPassword() {
+    return Storage.get(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD) || CONFIG.DEFAULT_ADMIN_PASSWORD;
+}
 
 // =============================================
 // STORAGE YARDIMCI FONKSİYONLARI
