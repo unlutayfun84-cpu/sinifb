@@ -484,36 +484,41 @@
             showRecentAnnouncements();
         }
 
-        function updateStats() {
+        async function updateStats() {
             const statsGrid = document.getElementById('statsGrid');
             if (!statsGrid) return;
+
+            const studentCount = await Students.getCount();
+            const announcementCount = await Announcements.getCount();
+            const homeworkCount = await Homework.getActiveCount();
+            const portfolioCount = await Portfolio.getCount();
 
             statsGrid.innerHTML = `
                 <div class="stat-card">
                     <div class="stat-icon blue">👥</div>
                     <div class="stat-info">
-                        <h3>${Students.getCount()}</h3>
+                        <h3>${studentCount}</h3>
                         <p>Öğrenci</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon orange">📢</div>
                     <div class="stat-info">
-                        <h3>${Announcements.getCount()}</h3>
+                        <h3>${announcementCount}</h3>
                         <p>Duyuru</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon green">📝</div>
                     <div class="stat-info">
-                        <h3>${Homework.getActiveCount()}</h3>
+                        <h3>${homeworkCount}</h3>
                         <p>Aktif Ödev</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon purple">📁</div>
                     <div class="stat-info">
-                        <h3>${Portfolio.getCount()}</h3>
+                        <h3>${portfolioCount}</h3>
                         <p>Portfolyo</p>
                     </div>
                 </div>
