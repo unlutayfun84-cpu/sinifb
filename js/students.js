@@ -1,236 +1,166 @@
 // =============================================
-// SINIF YÖNETİM SİSTEMİ - ÖĞRENCİ YÖNETİMİ
+// SINIF YÖNETİM SİSTEMİ - ÖĞRENCİ YÖNETİMİ (SUPABASE)
 // =============================================
 
 const Students = {
     // Tüm öğrencileri getir
-    getAll() {
-        return Storage.get(CONFIG.STORAGE_KEYS.STUDENTS) || [];
+    async getAll() {
+        return await SupabaseDB.getStudents();
     },
 
     // Tek öğrenci getir
-    getById(id) {
-        const students = this.getAll();
+    async getById(id) {
+        const students = await this.getAll();
         return students.find(s => s.id === id);
     },
 
     // Öğrenci ekle
-    add(data) {
-        const students = this.getAll();
-
+    async add(data) {
         const newStudent = {
             id: generateId(),
             name: data.name.trim(),
-            parentPassword: data.parentPassword || this.generatePassword(),
-            createdAt: getToday(),
-            notes: data.notes || ''
+            parentPassword: data.parentPassword || generateRandomPassword()
         };
 
-        students.push(newStudent);
-        Storage.set(CONFIG.STORAGE_KEYS.STUDENTS, students);
-
+        await SupabaseDB.addStudent(newStudent);
         return newStudent;
     },
 
     // Öğrenci güncelle
-    update(id, data) {
-        const students = this.getAll();
-        const index = students.findIndex(s => s.id === id);
-
-        if (index === -1) return null;
-
-        students[index] = {
-            ...students[index],
-            name: data.name ? data.name.trim() : students[index].name,
-            parentPassword: data.parentPassword || students[index].parentPassword,
-            notes: data.notes !== undefined ? data.notes : students[index].notes
+    async update(id, data) {
+        const updates = {
+            name: data.name ? data.name.trim() : undefined,
+            parentPassword: data.parentPassword
         };
 
-        Storage.set(CONFIG.STORAGE_KEYS.STUDENTS, students);
-        return students[index];
+        // Undefined değerleri temizle
+        Object.keys(updates).forEach(key => updates[key] === undefined && delete updates[key]);
+
+        await SupabaseDB.updateStudent(id, updates);
+        return await this.getById(id);
     },
 
     // Öğrenci sil
-    delete(id) {
-        const students = this.getAll();
-        const filtered = students.filter(s => s.id !== id);
-
-        if (filtered.length === students.length) return false;
-
-        Storage.set(CONFIG.STORAGE_KEYS.STUDENTS, filtered);
-
-        // İlişkili verileri de temizle
-        this.cleanupRelatedData(id);
-
+    async delete(id) {
+        await SupabaseDB.deleteStudent(id);
         return true;
     },
 
-    // Otomatik şifre oluştur
-    generatePassword() {
-        const chars = '0123456789';
-        let password = '';
-        for (let i = 0; i < 4; i++) {
-            password += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return 'veli' + password;
-    },
-
-    // İlişkili verileri temizle
-    cleanupRelatedData(studentId) {
-        // Portfolyo öğelerini temizle
-        const portfolio = Storage.get(CONFIG.STORAGE_KEYS.PORTFOLIO) || [];
-        const filteredPortfolio = portfolio.filter(p => p.studentId !== studentId);
-        Storage.set(CONFIG.STORAGE_KEYS.PORTFOLIO, filteredPortfolio);
-
-        // Değerlendirmeleri temizle
-        const evaluations = Storage.get(CONFIG.STORAGE_KEYS.EVALUATIONS) || [];
-        const filteredEvaluations = evaluations.filter(e => e.studentId !== studentId);
-        Storage.set(CONFIG.STORAGE_KEYS.EVALUATIONS, filteredEvaluations);
-
-        // Duyurulardaki öğrenci referanslarını temizle
-        const announcements = Storage.get(CONFIG.STORAGE_KEYS.ANNOUNCEMENTS) || [];
-        announcements.forEach(a => {
-            if (a.targetStudents && a.targetStudents.includes(studentId)) {
-                a.targetStudents = a.targetStudents.filter(id => id !== studentId);
-            }
-        });
-        Storage.set(CONFIG.STORAGE_KEYS.ANNOUNCEMENTS, announcements);
-    },
-
-    // Öğrenci sayısını getir
-    getCount() {
-        return this.getAll().length;
+    // Toplam öğrenci sayısı
+    async getCount() {
+        const students = await this.getAll();
+        return students.length;
     }
 };
 
+// Rastgele şifre oluştur
+function generateRandomPassword() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < 6; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+}
+
 // =============================================
-// ÖĞRENCİ LİSTESİ UI FONKSİYONLARI
+// ÖĞRENCİ UI FONKSİYONLARI
 // =============================================
 
-function renderStudentList() {
+async function renderStudentList() {
     const container = document.getElementById('studentListContainer');
     if (!container) return;
 
-    const students = Students.getAll();
+    const students = await Students.getAll();
 
     if (students.length === 0) {
-        container.innerHTML = showEmptyState('👥', 'Henüz öğrenci eklenmemiş', 'Yeni öğrenci eklemek için yukarıdaki butonu kullanın.');
+        container.innerHTML = showEmptyState('👥', 'Henüz öğrenci yok', 'Öğrenci eklemek için yukarıdaki butonu kullanın.');
         return;
     }
 
-    let html = `
-        <div class="table-container">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Öğrenci Adı</th>
-                        <th>Veli Şifresi</th>
-                        <th>Eklenme Tarihi</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
+    let html = '<div class="table-container"><table class="table"><thead><tr><th>Öğrenci Adı</th><th>Veli Şifresi</th><th>İşlemler</th></tr></thead><tbody>';
 
     students.forEach(student => {
         html += `
             <tr>
+                <td><strong>${student.name}</strong></td>
+                <td><code>${student.parentPassword}</code></td>
                 <td>
-                    <div class="flex items-center gap-2">
-                        <span class="emoji">👤</span>
-                        <strong>${student.name}</strong>
-                    </div>
-                </td>
-                <td>
-                    <code class="badge badge-primary">${student.parentPassword}</code>
-                </td>
-                <td>${formatDate(student.createdAt)}</td>
-                <td>
-                    <div class="flex gap-2">
-                        <button class="btn btn-sm btn-ghost" onclick="editStudent('${student.id}')" title="Düzenle">
-                            ✏️
-                        </button>
-                        <button class="btn btn-sm btn-ghost text-danger" onclick="deleteStudent('${student.id}')" title="Sil">
-                            🗑️
-                        </button>
-                    </div>
+                    <button class="btn btn-sm btn-ghost" onclick="editStudent('${student.id}')">✏️</button>
+                    <button class="btn btn-sm btn-ghost text-danger" onclick="deleteStudent('${student.id}')">🗑️</button>
                 </td>
             </tr>
         `;
     });
 
-    html += `
-                </tbody>
-            </table>
-        </div>
-    `;
-
+    html += '</tbody></table></div>';
     container.innerHTML = html;
 }
 
-// Öğrenci ekleme modalını aç
 function openAddStudentModal() {
     document.getElementById('studentModalTitle').textContent = '➕ Yeni Öğrenci Ekle';
     document.getElementById('studentForm').reset();
     document.getElementById('studentId').value = '';
-    document.getElementById('parentPassword').placeholder = 'Boş bırakılırsa otomatik oluşturulur';
+    document.getElementById('parentPassword').value = generateRandomPassword();
     showModal('studentModal');
 }
 
-// Öğrenci düzenleme modalını aç
-function editStudent(id) {
-    const student = Students.getById(id);
+async function editStudent(id) {
+    const student = await Students.getById(id);
     if (!student) return;
 
     document.getElementById('studentModalTitle').textContent = '✏️ Öğrenci Düzenle';
     document.getElementById('studentId').value = student.id;
     document.getElementById('studentName').value = student.name;
     document.getElementById('parentPassword').value = student.parentPassword;
-    document.getElementById('studentNotes').value = student.notes || '';
-
     showModal('studentModal');
 }
 
-// Öğrenci formunu kaydet
-function saveStudent(event) {
+async function saveStudent(event) {
     event.preventDefault();
 
     const id = document.getElementById('studentId').value;
     const name = document.getElementById('studentName').value.trim();
     const parentPassword = document.getElementById('parentPassword').value.trim();
-    const notes = document.getElementById('studentNotes').value.trim();
 
     if (!name) {
-        showToast('Öğrenci adı boş olamaz!', 'error');
+        showToast('Lütfen öğrenci adı girin!', 'error');
         return;
     }
 
-    if (id) {
-        // Güncelle
-        Students.update(id, { name, parentPassword, notes });
-        showToast('Öğrenci bilgileri güncellendi!');
-    } else {
-        // Yeni ekle
-        const student = Students.add({ name, parentPassword, notes });
-        showToast(`${student.name} başarıyla eklendi! Veli şifresi: ${student.parentPassword}`);
-    }
+    try {
+        if (id) {
+            await Students.update(id, { name, parentPassword });
+            showToast('Öğrenci güncellendi!');
+        } else {
+            await Students.add({ name, parentPassword });
+            showToast('Öğrenci eklendi!');
+        }
 
-    hideModal('studentModal');
-    renderStudentList();
-    updateStats();
+        hideModal('studentModal');
+        await renderStudentList();
+        await updateStats();
+    } catch (error) {
+        console.error('Error saving student:', error);
+        showToast('Bir hata oluştu!', 'error');
+    }
 }
 
-// Öğrenci sil
 async function deleteStudent(id) {
-    const student = Students.getById(id);
+    const student = await Students.getById(id);
     if (!student) return;
 
-    const confirmed = await confirmAction(`"${student.name}" adlı öğrenciyi silmek istediğinize emin misiniz?\n\nBu işlem öğrenciye ait tüm verileri (portfolyo, değerlendirmeler) de silecektir.`);
+    const confirmed = await confirmAction(`"${student.name}" öğrencisini silmek istediğinize emin misiniz?`);
 
     if (confirmed) {
-        Students.delete(id);
-        showToast('Öğrenci silindi!');
-        renderStudentList();
-        updateStats();
+        try {
+            await Students.delete(id);
+            showToast('Öğrenci silindi!');
+            await renderStudentList();
+            await updateStats();
+        } catch (error) {
+            console.error('Error deleting student:', error);
+            showToast('Bir hata oluştu!', 'error');
+        }
     }
 }

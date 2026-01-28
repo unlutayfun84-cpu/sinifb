@@ -4,8 +4,10 @@
 
 const Auth = {
     // Admin girişi
-    loginAsAdmin(password) {
-        if (password === getAdminPassword()) {
+    async loginAsAdmin(password) {
+        const adminPassword = await SupabaseDB.getAdminPassword() || getAdminPassword();
+
+        if (password === adminPassword) {
             const user = {
                 type: 'admin',
                 name: 'Öğretmen',
@@ -18,8 +20,10 @@ const Auth = {
     },
 
     // Admin şifresini güncelle
-    updateAdminPassword(oldPassword, newPassword) {
-        if (oldPassword !== getAdminPassword()) {
+    async updateAdminPassword(oldPassword, newPassword) {
+        const currentPassword = await SupabaseDB.getAdminPassword() || getAdminPassword();
+
+        if (oldPassword !== currentPassword) {
             return { success: false, message: 'Mevcut şifre hatalı!' };
         }
 
@@ -27,13 +31,14 @@ const Auth = {
             return { success: false, message: 'Yeni şifre en az 4 karakter olmalıdır!' };
         }
 
+        await SupabaseDB.setAdminPassword(newPassword);
         Storage.set(CONFIG.STORAGE_KEYS.ADMIN_PASSWORD, newPassword);
         return { success: true, message: 'Şifre başarıyla güncellendi!' };
     },
 
     // Veli girişi
-    loginAsParent(studentId, password) {
-        const students = Storage.get(CONFIG.STORAGE_KEYS.STUDENTS) || [];
+    async loginAsParent(studentId, password) {
+        const students = await Students.getAll();
         const student = students.find(s => s.id === studentId);
 
         if (!student) {
@@ -121,11 +126,11 @@ function switchLoginTab(tabName) {
 }
 
 // Admin giriş formu işle
-function handleAdminLogin(event) {
+async function handleAdminLogin(event) {
     event.preventDefault();
 
     const password = document.getElementById('adminPassword').value;
-    const result = Auth.loginAsAdmin(password);
+    const result = await Auth.loginAsAdmin(password);
 
     if (result.success) {
         showToast('Hoş geldiniz, Öğretmen!');
@@ -139,7 +144,7 @@ function handleAdminLogin(event) {
 }
 
 // Veli giriş formu işle
-function handleParentLogin(event) {
+async function handleParentLogin(event) {
     event.preventDefault();
 
     const studentId = document.getElementById('studentSelect').value;
@@ -150,7 +155,7 @@ function handleParentLogin(event) {
         return;
     }
 
-    const result = Auth.loginAsParent(studentId, password);
+    const result = await Auth.loginAsParent(studentId, password);
 
     if (result.success) {
         showToast('Hoş geldiniz!');
@@ -164,11 +169,11 @@ function handleParentLogin(event) {
 }
 
 // Öğrenci listesini yükle (veli girişi için)
-function loadStudentOptions() {
+async function loadStudentOptions() {
     const select = document.getElementById('studentSelect');
     if (!select) return;
 
-    const students = Storage.get(CONFIG.STORAGE_KEYS.STUDENTS) || [];
+    const students = await Students.getAll();
 
     select.innerHTML = '<option value="">-- Öğrenci Seçin --</option>';
 
