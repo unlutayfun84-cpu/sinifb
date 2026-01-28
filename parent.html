@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Veli Paneli - Sınıf Yönetim Sistemi">
+    <title>👨‍👩‍👧 Veli Paneli</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <!-- Header -->
+        <header class="header" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
+            <div class="container">
+                <div class="header-content">
+                    <div class="header-logo">
+                        <span class="emoji">👨‍👩‍👧</span>
+                        <h1 id="parentHeader">Veli Paneli</h1>
+                    </div>
+                    <button class="btn btn-sm btn-ghost" style="color:white" onclick="Auth.logout()">
+                        🚪 Çıkış
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content (No Sidebar for Parent) -->
+        <main class="container" style="margin-left:0; padding: 2rem 1rem;">
+
+            <!-- Welcome Card -->
+            <div class="card mb-6" style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border: none;">
+                <div class="flex items-center gap-4">
+                    <div style="font-size: 3rem;">👋</div>
+                    <div>
+                        <h2 id="welcomeText" class="font-bold text-lg">Hoş Geldiniz!</h2>
+                        <p class="text-muted">Öğrencinizin gelişimini buradan takip edebilirsiniz.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="login-tabs mb-6">
+                <button class="login-tab active" data-tab="announcements" onclick="switchParentTab('announcements')">
+                    📢 Duyurular
+                </button>
+                <button class="login-tab" data-tab="homeworks" onclick="switchParentTab('homeworks')">
+                    📝 Ödevler
+                </button>
+                <button class="login-tab" data-tab="portfolios" onclick="switchParentTab('portfolios')">
+                    📁 Portfolyo
+                </button>
+                <button class="login-tab" data-tab="evaluations" onclick="switchParentTab('evaluations')">
+                    📊 Haftalık Değerlendirmeler
+                </button>
+            </div>
+
+            <!-- Content Sections -->
+            <div id="announcementsSection" class="parent-section active">
+                <div class="card">
+                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                        📢 Duyurular
+                    </h3>
+                    <div id="parentAnnouncementsContainer"></div>
+                </div>
+            </div>
+
+            <div id="homeworksSection" class="parent-section">
+                <div class="card">
+                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                        📝 Ödevler
+                    </h3>
+                    <div id="parentHomeworkContainer"></div>
+                </div>
+            </div>
+
+            <div id="portfoliosSection" class="parent-section">
+                <div class="card">
+                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                        📁 Portfolyo Dosyası
+                    </h3>
+                    <div id="parentPortfolioContainer"></div>
+                </div>
+            </div>
+
+            <div id="evaluationsSection" class="parent-section">
+                <div class="card">
+                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                        📊 Haftalık Değerlendirmeler
+                    </h3>
+                    <div id="parentWeeklyEvalContainer"></div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div class="toast-container"></div>
+
+    <script src="js/app.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/students.js"></script>
+    <script src="js/announcements.js"></script>
+    <script src="js/portfolio.js"></script>
+    <script src="js/homework.js"></script>
+    <script src="js/evaluation.js"></script>
+    <script src="js/curriculum.js"></script>
+    <script src="js/weeklyEval.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!Auth.requireAuth('parent')) return;
+
+            const user = Auth.getCurrentUser();
+            if (user) {
+                document.getElementById('parentHeader').textContent = `${user.studentName} - Veli Paneli`;
+                document.getElementById('welcomeText').textContent = `Hoş Geldiniz, ${user.name}!`;
+            }
+
+            initializeParentDashboard();
+        });
+
+        function initializeParentDashboard() {
+            renderParentAnnouncements();
+            renderParentHomework();
+            renderParentPortfolio();
+            renderParentWeeklyEvaluations();
+        }
+
+        function switchParentTab(tabName) {
+            document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            document.querySelectorAll('.parent-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(tabName + 'Section').classList.add('active');
+        }
+    </script>
+    <style>
+        .parent-section {
+            display: none;
+        }
+
+        .parent-section.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .login-tabs {
+                flex-wrap: wrap;
+            }
+
+            .login-tab {
+                flex: 1 1 45%;
+                font-size: 0.875rem;
+            }
+        }
+    </style>
+</body>
+
+</html>

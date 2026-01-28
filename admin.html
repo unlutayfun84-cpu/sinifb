@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Öğretmen Paneli - Sınıf Yönetim Sistemi">
+    <title>👨‍🏫 Öğretmen Paneli</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <!-- Header -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="header-logo">
+                        <span class="emoji">🏫</span>
+                        <h1>Sınıf Yönetim Paneli</h1>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button class="btn btn-sm btn-ghost" style="color:white" onclick="exportData()"
+                            title="Verileri Yedekle">
+                            💾 Yedekle
+                        </button>
+                        <button class="btn btn-sm btn-ghost" style="color:white" onclick="Auth.logout()">
+                            🚪 Çıkış
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#" class="nav-link active" onclick="showSection('dashboard')">
+                        <span class="emoji">📊</span> Özet
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" onclick="showSection('students')">
+                        <span class="emoji">👥</span> Öğrenciler
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" onclick="showSection('announcements')">
+                        <span class="emoji">📢</span> Duyurular
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" onclick="showSection('portfolio')">
+                        <span class="emoji">📁</span> Portfolyo
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" onclick="showSection('homework')">
+                        <span class="emoji">📝</span> Ödevler
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" onclick="showSection('weeklyEval')">
+                        <span class="emoji">📊</span> Haftalık Değerlendirme
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" onclick="showSection('generalEval')">
+                        <span class="emoji">📈</span> Genel Değerlendirme
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard -->
+            <section id="dashboard" class="section active">
+                <h2 class="page-title">📊 Genel Bakış</h2>
+                <div class="stats-grid" id="statsGrid"></div>
+                <div class="card mt-6">
+                    <h3 class="font-bold mb-4">📢 Son Duyurular</h3>
+                    <div id="recentAnnouncements"></div>
+                </div>
+            </section>
+
+            <!-- Öğrenciler -->
+            <section id="students" class="section">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="page-title">👥 Öğrenci Yönetimi</h2>
+                    <button class="btn btn-primary" onclick="openAddStudentModal()">➕ Öğrenci Ekle</button>
+                </div>
+                <div id="studentListContainer"></div>
+            </section>
+
+            <!-- Duyurular -->
+            <section id="announcements" class="section">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="page-title">📢 Duyuru Yönetimi</h2>
+                    <button class="btn btn-primary" onclick="openAddAnnouncementModal()">➕ Duyuru Ekle</button>
+                </div>
+                <div id="announcementListContainer"></div>
+            </section>
+
+            <!-- Portfolyo -->
+            <section id="portfolio" class="section">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="page-title">📁 Portfolyo Yönetimi</h2>
+                    <button class="btn btn-primary" onclick="openAddPortfolioModal()">➕ Ürün Ekle</button>
+                </div>
+                <div id="portfolioListContainer"></div>
+            </section>
+
+            <!-- Ödevler -->
+            <section id="homework" class="section">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="page-title">📝 Ödev Yönetimi</h2>
+                    <button class="btn btn-primary" onclick="openAddHomeworkModal()">➕ Ödev Ekle</button>
+                </div>
+                <div id="homeworkListContainer"></div>
+            </section>
+
+            <!-- Haftalık Değerlendirme -->
+            <section id="weeklyEval" class="section">
+                <h2 class="page-title">📊 Haftalık Değerlendirme</h2>
+                <p class="text-muted mb-4">Öğrencilerin haftalık ders kazanımlarını değerlendirin.</p>
+                <div id="weeklyEvalListContainer"></div>
+            </section>
+
+            <!-- Genel Değerlendirme -->
+            <section id="generalEval" class="section">
+                <h2 class="page-title">📈 Genel Değerlendirme</h2>
+                <p class="text-muted mb-4">Sınıf performansını ve öğrenilemeyen konuları görüntüleyin.</p>
+                <div id="generalEvalContent">
+                    <!-- Bireysel Öğrenci Grafiği -->
+                    <div class="card mb-6">
+                        <h3 class="font-bold mb-4">🎯 Bireysel Öğrenci Performansı</h3>
+                        <div class="form-group" style="max-width: 400px;">
+                            <label class="form-label">Öğrenci Seçin</label>
+                            <select id="studentSelectForChart" class="form-select"
+                                onchange="onStudentSelectForChart(this)">
+                                <option value="">-- Öğrenci Seçin --</option>
+                            </select>
+                        </div>
+                        <div style="max-width: 600px; margin: 2rem auto;">
+                            <canvas id="studentRadarChart" style="display:none;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Sınıf Geneli Grafik -->
+                    <div class="card mb-6">
+                        <h3 class="font-bold mb-4">📊 Sınıf Geneli Haftalık Performans</h3>
+                        <div style="max-width: 900px; margin: 0 auto;">
+                            <canvas id="classWeeklyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Öğrenilemeyen Konular -->
+                    <div class="card">
+                        <h3 class="font-bold mb-4">⚠️ Öğrenilemeyen Konular (3⭐ Altı)</h3>
+                        <div id="weakTopicsContainer"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- Öğrenci Modal -->
+    <div id="studentModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="studentModalTitle">➕ Yeni Öğrenci</h2>
+                <button class="modal-close" onclick="hideModal('studentModal')">✕</button>
+            </div>
+            <form id="studentForm" class="modal-body" onsubmit="saveStudent(event)">
+                <input type="hidden" id="studentId">
+                <div class="form-group">
+                    <label class="form-label">Öğrenci Adı *</label>
+                    <input type="text" id="studentName" class="form-input" placeholder="Örn: Ahmet Yılmaz" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Veli Şifresi</label>
+                    <input type="text" id="parentPassword" class="form-input" placeholder="Otomatik oluşturulur">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notlar</label>
+                    <textarea id="studentNotes" class="form-textarea"
+                        placeholder="Öğrenci hakkında notlar..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="hideModal('studentModal')">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Duyuru Modal -->
+    <div id="announcementModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="announcementModalTitle">➕ Yeni Duyuru</h2>
+                <button class="modal-close" onclick="hideModal('announcementModal')">✕</button>
+            </div>
+            <form id="announcementForm" class="modal-body" onsubmit="saveAnnouncement(event)">
+                <input type="hidden" id="announcementId">
+                <div class="form-group">
+                    <label class="form-label">Başlık *</label>
+                    <input type="text" id="announcementTitle" class="form-input" placeholder="Duyuru başlığı" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">İçerik *</label>
+                    <textarea id="announcementContent" class="form-textarea" placeholder="Duyuru içeriği..."
+                        required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-checkbox">
+                        <input type="checkbox" id="isGeneral" checked onchange="toggleStudentSelection()">
+                        <span>🌐 Genel Duyuru (Tüm sınıfa)</span>
+                    </label>
+                </div>
+                <div id="studentSelectionSection" class="form-group" style="display:none">
+                    <label class="form-label">Hedef Öğrenciler</label>
+                    <div id="studentCheckboxContainer"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="hideModal('announcementModal')">İptal</button>
+                    <button type="submit" class="btn btn-primary">Yayınla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Portfolyo Modal -->
+    <div id="portfolioModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="portfolioModalTitle">➕ Yeni Ürün</h2>
+                <button class="modal-close" onclick="hideModal('portfolioModal')">✕</button>
+            </div>
+            <form id="portfolioForm" class="modal-body" onsubmit="savePortfolioItem(event)">
+                <input type="hidden" id="portfolioId">
+                <div class="form-group">
+                    <label class="form-label">Öğrenci *</label>
+                    <select id="portfolioStudent" class="form-select" required></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Başlık *</label>
+                    <input type="text" id="portfolioTitle" class="form-input" placeholder="Çalışma başlığı" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Kategori</label>
+                    <select id="portfolioCategory" class="form-select"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Açıklama</label>
+                    <textarea id="portfolioDescription" class="form-textarea"
+                        placeholder="Çalışma hakkında..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Resim (max 10MB)</label>
+                    <input type="file" id="portfolioImage" class="form-input" accept="image/*"
+                        onchange="previewImage(this)">
+                    <div id="imagePreview" class="mt-3"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-checkbox">
+                        <input type="checkbox" id="shareWithParent">
+                        <span>✅ Veli ile paylaş</span>
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="hideModal('portfolioModal')">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ödev Modal -->
+    <div id="homeworkModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="homeworkModalTitle">➕ Yeni Ödev</h2>
+                <button class="modal-close" onclick="hideModal('homeworkModal')">✕</button>
+            </div>
+            <form id="homeworkForm" class="modal-body" onsubmit="saveHomework(event)">
+                <input type="hidden" id="homeworkId">
+                <div class="form-group">
+                    <label class="form-label">Başlık *</label>
+                    <input type="text" id="homeworkTitle" class="form-input" placeholder="Ödev başlığı" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ders</label>
+                    <select id="homeworkSubject" class="form-select"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Teslim Tarihi *</label>
+                    <input type="date" id="homeworkDueDate" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Açıklama</label>
+                    <textarea id="homeworkDescription" class="form-textarea" placeholder="Ödev detayları..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-checkbox">
+                        <input type="checkbox" id="isHomeworkGeneral" checked
+                            onchange="toggleHomeworkStudentSelection()">
+                        <span>🌐 Tüm sınıfa</span>
+                    </label>
+                </div>
+                <div id="homeworkStudentSelectionSection" class="form-group" style="display:none">
+                    <label class="form-label">Hedef Öğrenciler</label>
+                    <div id="homeworkStudentCheckboxContainer"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="hideModal('homeworkModal')">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ödev Detay Modal -->
+    <div id="homeworkDetailsModal" class="modal-overlay">
+        <div class="modal" style="max-width:600px">
+            <div class="modal-header">
+                <h2>📝 Ödev Detayları</h2>
+                <button class="modal-close" onclick="hideModal('homeworkDetailsModal')">✕</button>
+            </div>
+            <div id="homeworkDetailsContent" class="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Değerlendirme Modal -->
+    <div id="evaluationModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="evaluationModalTitle">⭐ Değerlendirme</h2>
+                <button class="modal-close" onclick="hideModal('evaluationModal')">✕</button>
+            </div>
+            <form id="evaluationForm" class="modal-body" onsubmit="saveEvaluation(event)">
+                <input type="hidden" id="evaluationId">
+                <input type="hidden" id="evaluationStudentId">
+                <div class="form-group">
+                    <label class="form-label">Dönem</label>
+                    <select id="evaluationPeriod" class="form-select"></select>
+                </div>
+                <div id="ratingInputsContainer"></div>
+                <div class="form-group">
+                    <label class="form-label">Öğretmen Notu</label>
+                    <textarea id="evaluationNotes" class="form-textarea"
+                        placeholder="Genel değerlendirme..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="hideModal('evaluationModal')">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Değerlendirme Geçmiş Modal -->
+    <div id="evaluationHistoryModal" class="modal-overlay">
+        <div class="modal" style="max-width:600px">
+            <div class="modal-header">
+                <h2>📊 Değerlendirme Geçmişi</h2>
+                <button class="modal-close" onclick="hideModal('evaluationHistoryModal')">✕</button>
+            </div>
+            <div id="evaluationHistoryContent" class="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Haftalık Değerlendirme Modal -->
+    <div id="weeklyEvalModal" class="modal-overlay">
+        <div class="modal" style="max-width:700px; max-height:90vh; overflow-y:auto;">
+            <div class="modal-header">
+                <h2 id="weeklyEvalModalTitle">📊 Haftalık Değerlendirme</h2>
+                <button class="modal-close" onclick="hideModal('weeklyEvalModal')">✕</button>
+            </div>
+            <form id="weeklyEvalForm" class="modal-body" onsubmit="saveWeeklyEvaluation(event)">
+                <input type="hidden" id="weeklyEvalStudentId">
+                <input type="hidden" id="weeklyEvalWeek">
+                <div id="weeklyEvalSubjects"></div>
+                <div class="form-group">
+                    <label class="form-label">✅ Bu hafta öğrendikleri</label>
+                    <textarea id="weeklyEvalLearned" class="form-textarea"
+                        placeholder="Örn: Harfleri tanıyor, 10'a kadar sayıyor..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">📌 Geliştirilmesi gerekenler</label>
+                    <textarea id="weeklyEvalNeedsWork" class="form-textarea"
+                        placeholder="Örn: Yazı yönünde destek gerekli..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">📝 Genel Not</label>
+                    <textarea id="weeklyEvalGeneralNote" class="form-textarea" placeholder="Ek notlar..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="hideModal('weeklyEvalModal')">İptal</button>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Haftalık Değerlendirme Detay Modal -->
+    <div id="weeklyEvalDetailsModal" class="modal-overlay">
+        <div class="modal" style="max-width:600px; max-height:90vh; overflow-y:auto;">
+            <div class="modal-header">
+                <h2>📊 Değerlendirme Detayı</h2>
+                <button class="modal-close" onclick="hideModal('weeklyEvalDetailsModal')">✕</button>
+            </div>
+            <div id="weeklyEvalDetailsContent" class="modal-body"></div>
+        </div>
+    </div>
+
+    <div class="toast-container"></div>
+
+    <script src="js/app.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/students.js"></script>
+    <script src="js/announcements.js"></script>
+    <script src="js/portfolio.js"></script>
+    <script src="js/homework.js"></script>
+    <script src="js/evaluation.js"></script>
+    <script src="js/curriculum.js"></script>
+    <script src="js/weeklyEval.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/charts.js"></script>
+    <script>
+        // Sayfa yüklendiğinde
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!Auth.requireAuth('admin')) return;
+            initializeDashboard();
+        });
+
+        function initializeDashboard() {
+            updateStats();
+            renderStudentList();
+            renderAnnouncementList();
+            renderPortfolioList();
+            renderHomeworkList();
+            renderWeeklyEvaluationList();
+            initializeGeneralEvaluation();
+            showRecentAnnouncements();
+        }
+
+        function updateStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            if (!statsGrid) return;
+
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-icon blue">👥</div>
+                    <div class="stat-info">
+                        <h3>${Students.getCount()}</h3>
+                        <p>Öğrenci</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange">📢</div>
+                    <div class="stat-info">
+                        <h3>${Announcements.getCount()}</h3>
+                        <p>Duyuru</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">📝</div>
+                    <div class="stat-info">
+                        <h3>${Homework.getActiveCount()}</h3>
+                        <p>Aktif Ödev</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon purple">📁</div>
+                    <div class="stat-info">
+                        <h3>${Portfolio.getCount()}</h3>
+                        <p>Portfolyo</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showRecentAnnouncements() {
+            const container = document.getElementById('recentAnnouncements');
+            if (!container) return;
+
+            const announcements = Announcements.getAll().slice(0, 3);
+            if (announcements.length === 0) {
+                container.innerHTML = '<p class="text-muted">Henüz duyuru yok.</p>';
+                return;
+            }
+
+            let html = '';
+            announcements.forEach(a => {
+                html += `<div class="announcement-card mb-3"><div class="announcement-header"><h4>${a.title}</h4><span class="text-sm text-muted">${formatDate(a.createdAt)}</span></div><p class="text-sm">${a.content.substring(0, 100)}${a.content.length > 100 ? '...' : ''}</p></div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+
+            const section = document.getElementById(sectionId);
+            if (section) section.classList.add('active');
+
+            event.target.closest('.nav-link').classList.add('active');
+        }
+    </script>
+    <style>
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+    </style>
+</body>
+
+</html>

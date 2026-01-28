@@ -1,0 +1,13 @@
+# Artifacts (geliştirme dökümanları)
+.gemini/
+
+# Tarayıcı önbelleği
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
