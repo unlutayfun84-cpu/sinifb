@@ -1,303 +1,179 @@
 // =============================================
-// SINIF YÖNETİM SİSTEMİ - PORTFOLYO YÖNETİMİ
+// SINIF YÖNETİM SİSTEMİ - PORTFOLYO YÖNETİMİ (SUPABASE)
 // =============================================
 
 const Portfolio = {
-    // Tüm portfolyo öğelerini getir
-    getAll() {
-        return Storage.get(CONFIG.STORAGE_KEYS.PORTFOLIO) || [];
+    async getAll() { return await SupabaseDB.getPortfolio(); },
+    async getById(id) { const all = await this.getAll(); return all.find(p => p.id === id); },
+    async getByStudent(studentId) { const all = await this.getAll(); return all.filter(p => p.studentId === studentId); },
+    async getSharedWithParent(studentId) {
+        const all = await this.getByStudent(studentId);
+        return all.filter(p => p.sharedWithParent);
     },
 
-    // Tek öğe getir
-    getById(id) {
-        const items = this.getAll();
-        return items.find(p => p.id === id);
-    },
-
-    // Öğrencinin portfolyosunu getir
-    getByStudent(studentId) {
-        return this.getAll().filter(p => p.studentId === studentId);
-    },
-
-    // Veli ile paylaşılanları getir
-    getSharedWithParent(studentId) {
-        return this.getByStudent(studentId).filter(p => p.sharedWithParent);
-    },
-
-    // Portfolyo öğesi ekle
-    add(data) {
-        const items = this.getAll();
-
+    async add(data) {
         const newItem = {
             id: generateId(),
             studentId: data.studentId,
             title: data.title.trim(),
             description: data.description ? data.description.trim() : '',
             imageData: data.imageData || null,
-            category: data.category || 'Genel',
+            category: data.category,
             date: getToday(),
             sharedWithParent: data.sharedWithParent || false
         };
-
-        items.unshift(newItem);
-        Storage.set(CONFIG.STORAGE_KEYS.PORTFOLIO, items);
-
+        await SupabaseDB.addPortfolio(newItem);
         return newItem;
     },
 
-    // Portfolyo öğesi güncelle
-    update(id, data) {
-        const items = this.getAll();
-        const index = items.findIndex(p => p.id === id);
+    async update(id, data) {
+        const updates = {};
+        if (data.title) updates.title = data.title.trim();
+        if (data.description !== undefined) updates.description = data.description.trim();
+        if (data.category) updates.category = data.category;
+        if (data.sharedWithParent !== undefined) updates.sharedWithParent = data.sharedWithParent;
 
-        if (index === -1) return null;
-
-        items[index] = {
-            ...items[index],
-            title: data.title ? data.title.trim() : items[index].title,
-            description: data.description !== undefined ? data.description.trim() : items[index].description,
-            category: data.category || items[index].category,
-            sharedWithParent: data.sharedWithParent !== undefined ? data.sharedWithParent : items[index].sharedWithParent
-        };
-
-        Storage.set(CONFIG.STORAGE_KEYS.PORTFOLIO, items);
-        return items[index];
+        await SupabaseDB.updatePortfolio(id, updates);
+        return await this.getById(id);
     },
 
-    // Portfolyo öğesi sil
-    delete(id) {
-        const items = this.getAll();
-        const filtered = items.filter(p => p.id !== id);
-
-        if (filtered.length === items.length) return false;
-
-        Storage.set(CONFIG.STORAGE_KEYS.PORTFOLIO, filtered);
+    async delete(id) {
+        await SupabaseDB.deletePortfolio(id);
         return true;
     },
 
-    // Veli ile paylaşımı değiştir
-    toggleShare(id) {
-        const item = this.getById(id);
+    async toggleShare(id) {
+        const item = await this.getById(id);
         if (!item) return null;
-
-        return this.update(id, { sharedWithParent: !item.sharedWithParent });
+        return await this.update(id, { sharedWithParent: !item.sharedWithParent });
     },
 
-    // Toplam öğe sayısı
-    getCount() {
-        return this.getAll().length;
-    },
-
-    // Kategoriler
-    getCategories() {
-        return ['Resim', 'Yazı', 'El İşi', 'Matematik', 'Fen', 'Müzik', 'Beden Eğitimi', 'Genel'];
-    }
+    async getCount() { const all = await this.getAll(); return all.length; }
 };
 
-// =============================================
-// PORTFOLYO UI FONKSİYONLARI
-// =============================================
-
-function renderPortfolioList() {
+// UI Fonksiyonları
+async function renderPortfolioList() {
     const container = document.getElementById('portfolioListContainer');
     if (!container) return;
 
-    const students = Students.getAll();
-    const portfolio = Portfolio.getAll();
+    const students = await Students.getAll();
+    const portfolio = await Portfolio.getAll();
 
     if (portfolio.length === 0) {
-        container.innerHTML = showEmptyState('📁', 'Henüz ürün dosyası yok', 'Öğrenci çalışmalarını eklemek için yukarıdaki butonu kullanın.');
+        container.innerHTML = showEmptyState('📁', 'Henüz portfolyo öğesi yok', 'Yeni öğe eklemek için yukarıdaki butonu kullanın.');
         return;
     }
 
-    // Öğrencilere göre grupla
-    let html = '';
-
-    students.forEach(student => {
-        const studentItems = Portfolio.getByStudent(student.id);
-        if (studentItems.length === 0) return;
+    let html = '<div class="portfolio-grid">';
+    portfolio.forEach(item => {
+        const student = students.find(s => s.id === item.studentId);
+        const studentName = student ? student.name : 'Bilinmeyen';
 
         html += `
-            <div class="mb-6">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                    👤 ${student.name}
-                    <span class="badge badge-primary">${studentItems.length} ürün</span>
-                </h3>
-                <div class="portfolio-grid">
-        `;
-
-        studentItems.forEach(item => {
-            const sharedBadge = item.sharedWithParent
-                ? '<span class="badge badge-success">✅ Veli ile paylaşıldı</span>'
-                : '<span class="badge badge-warning">🔒 Paylaşılmadı</span>';
-
-            html += `
-                <div class="portfolio-item">
-                    ${item.imageData
-                    ? `<img src="${item.imageData}" alt="${item.title}" class="portfolio-image">`
-                    : '<div class="portfolio-image flex items-center justify-center text-4xl">📄</div>'
-                }
-                    <div class="portfolio-info">
-                        <h4>${item.title}</h4>
-                        <p>${item.description || 'Açıklama yok'}</p>
-                        <div class="flex items-center justify-between mt-3">
-                            <span class="text-sm text-muted">${item.category} • ${formatDate(item.date)}</span>
-                        </div>
-                        <div class="mt-3">
-                            ${sharedBadge}
-                        </div>
-                        <div class="flex gap-2 mt-3">
-                            <button class="btn btn-sm ${item.sharedWithParent ? 'btn-outline' : 'btn-success'}" onclick="togglePortfolioShare('${item.id}')">
-                                ${item.sharedWithParent ? '🔒 Paylaşımı Kaldır' : '✅ Veli ile Paylaş'}
-                            </button>
-                            <button class="btn btn-sm btn-ghost" onclick="editPortfolioItem('${item.id}')">✏️</button>
-                            <button class="btn btn-sm btn-ghost text-danger" onclick="deletePortfolioItem('${item.id}')">🗑️</button>
-                        </div>
+            <div class="portfolio-card">
+                ${item.imageData ? `<img src="${item.imageData}" alt="${item.title}" class="portfolio-image">` : '<div class="portfolio-placeholder">📁</div>'}
+                <div class="portfolio-content">
+                    <h3>${item.title}</h3>
+                    <p class="text-muted">${item.description || 'Açıklama yok'}</p>
+                    <div class="portfolio-meta">
+                        <span class="badge badge-${getCategoryColor(item.category)}">${item.category}</span>
+                        <span>👤 ${studentName}</span>
+                        <span>📅 ${formatDate(item.date)}</span>
                     </div>
-                </div>
-            `;
-        });
-
-        html += `
+                    <div class="portfolio-actions">
+                        <button class="btn btn-sm ${item.sharedWithParent ? 'btn-success' : 'btn-ghost'}" 
+                                onclick="togglePortfolioShare('${item.id}')" 
+                                title="${item.sharedWithParent ? 'Veli ile paylaşılıyor' : 'Veli ile paylaş'}">
+                            ${item.sharedWithParent ? '✅ Paylaşıldı' : '👁️ Paylaş'}
+                        </button>
+                        <button class="btn btn-sm btn-ghost" onclick="editPortfolio('${item.id}')">✏️</button>
+                        <button class="btn btn-sm btn-ghost text-danger" onclick="deletePortfolio('${item.id}')">🗑️</button>
+                    </div>
                 </div>
             </div>
         `;
     });
-
+    html += '</div>';
     container.innerHTML = html;
 }
 
-// Veli için portfolyo
-function renderParentPortfolio() {
+async function renderParentPortfolio() {
     const container = document.getElementById('parentPortfolioContainer');
     if (!container) return;
 
     const user = Auth.getCurrentUser();
     if (!user || user.type !== 'parent') return;
 
-    const items = Portfolio.getSharedWithParent(user.studentId);
+    const portfolio = await Portfolio.getSharedWithParent(user.studentId);
 
-    if (items.length === 0) {
-        container.innerHTML = showEmptyState('📁', 'Henüz paylaşılan ürün yok');
+    if (portfolio.length === 0) {
+        container.innerHTML = showEmptyState('📁', 'Henüz portfolyo öğesi yok');
         return;
     }
 
     let html = '<div class="portfolio-grid">';
-
-    items.forEach(item => {
+    portfolio.forEach(item => {
         html += `
-            <div class="portfolio-item">
-                ${item.imageData
-                ? `<img src="${item.imageData}" alt="${item.title}" class="portfolio-image">`
-                : '<div class="portfolio-image flex items-center justify-center text-4xl">📄</div>'
-            }
-                <div class="portfolio-info">
-                    <h4>${item.title}</h4>
-                    <p>${item.description || ''}</p>
-                    <span class="text-sm text-muted">${item.category} • ${formatDate(item.date)}</span>
+            <div class="portfolio-card">
+                ${item.imageData ? `<img src="${item.imageData}" alt="${item.title}" class="portfolio-image">` : '<div class="portfolio-placeholder">📁</div>'}
+                <div class="portfolio-content">
+                    <h3>${item.title}</h3>
+                    <p>${item.description || 'Açıklama yok'}</p>
+                    <div class="portfolio-meta">
+                        <span class="badge badge-${getCategoryColor(item.category)}">${item.category}</span>
+                        <span>📅 ${formatDate(item.date)}</span>
+                    </div>
                 </div>
             </div>
         `;
     });
-
     html += '</div>';
     container.innerHTML = html;
 }
 
-// Portfolyo ekleme modalını aç
-function openAddPortfolioModal() {
-    document.getElementById('portfolioModalTitle').textContent = '➕ Yeni Ürün Ekle';
+async function openAddPortfolioModal() {
+    document.getElementById('portfolioModalTitle').textContent = '➕ Yeni Portfolyo Öğesi';
     document.getElementById('portfolioForm').reset();
     document.getElementById('portfolioId').value = '';
     document.getElementById('imagePreview').innerHTML = '';
 
-    // Öğrenci listesini yükle
-    loadStudentSelect('portfolioStudent');
-
-    // Kategori listesini yükle
-    loadCategorySelect();
+    const students = await Students.getAll();
+    const select = document.getElementById('portfolioStudent');
+    select.innerHTML = '<option value="">-- Öğrenci Seçin --</option>';
+    students.forEach(s => {
+        select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+    });
 
     showModal('portfolioModal');
 }
 
-// Öğrenci select'ini yükle
-function loadStudentSelect(selectId) {
-    const select = document.getElementById(selectId);
-    if (!select) return;
-
-    const students = Students.getAll();
-
-    select.innerHTML = '<option value="">-- Öğrenci Seçin --</option>';
-    students.forEach(student => {
-        select.innerHTML += `<option value="${student.id}">${student.name}</option>`;
-    });
-}
-
-// Kategori select'ini yükle
-function loadCategorySelect() {
-    const select = document.getElementById('portfolioCategory');
-    if (!select) return;
-
-    const categories = Portfolio.getCategories();
-
-    select.innerHTML = '';
-    categories.forEach(cat => {
-        select.innerHTML += `<option value="${cat}">${cat}</option>`;
-    });
-}
-
-// Portfolyo düzenleme
-function editPortfolioItem(id) {
-    const item = Portfolio.getById(id);
+async function editPortfolio(id) {
+    const item = await Portfolio.getById(id);
     if (!item) return;
 
-    document.getElementById('portfolioModalTitle').textContent = '✏️ Ürün Düzenle';
+    document.getElementById('portfolioModalTitle').textContent = '✏️ Portfolyo Düzenle';
     document.getElementById('portfolioId').value = item.id;
+    document.getElementById('portfolioStudent').value = item.studentId;
     document.getElementById('portfolioTitle').value = item.title;
     document.getElementById('portfolioDescription').value = item.description;
-
-    loadStudentSelect('portfolioStudent');
-    document.getElementById('portfolioStudent').value = item.studentId;
-
-    loadCategorySelect();
     document.getElementById('portfolioCategory').value = item.category;
+    document.getElementById('portfolioShare').checked = item.sharedWithParent;
 
-    document.getElementById('shareWithParent').checked = item.sharedWithParent;
-
-    // Resim önizleme
-    const preview = document.getElementById('imagePreview');
     if (item.imageData) {
-        preview.innerHTML = `<img src="${item.imageData}" alt="Önizleme" style="max-width: 200px; border-radius: var(--radius);">`;
-    } else {
-        preview.innerHTML = '';
+        document.getElementById('imagePreview').innerHTML = `<img src="${item.imageData}" alt="Preview" style="max-width: 200px;">`;
     }
+
+    const students = await Students.getAll();
+    const select = document.getElementById('portfolioStudent');
+    select.innerHTML = '<option value="">-- Öğrenci Seçin --</option>';
+    students.forEach(s => {
+        select.innerHTML += `<option value="${s.id}" ${s.id === item.studentId ? 'selected' : ''}>${s.name}</option>`;
+    });
 
     showModal('portfolioModal');
 }
 
-// Resim önizleme
-function previewImage(input) {
-    const preview = document.getElementById('imagePreview');
-
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-
-        if (file.size > CONFIG.MAX_IMAGE_SIZE) {
-            showToast('Dosya boyutu çok büyük! Maksimum 10MB olmalıdır.', 'error');
-            input.value = '';
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            preview.innerHTML = `<img src="${e.target.result}" alt="Önizleme" style="max-width: 200px; border-radius: var(--radius);">`;
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-// Portfolyo formunu kaydet
-async function savePortfolioItem(event) {
+async function savePortfolio(event) {
     event.preventDefault();
 
     const id = document.getElementById('portfolioId').value;
@@ -305,63 +181,86 @@ async function savePortfolioItem(event) {
     const title = document.getElementById('portfolioTitle').value.trim();
     const description = document.getElementById('portfolioDescription').value.trim();
     const category = document.getElementById('portfolioCategory').value;
-    const sharedWithParent = document.getElementById('shareWithParent').checked;
-    const imageInput = document.getElementById('portfolioImage');
+    const sharedWithParent = document.getElementById('portfolioShare').checked;
 
-    if (!studentId || !title) {
-        showToast('Lütfen öğrenci seçin ve başlık girin!', 'error');
+    if (!studentId || !title || !category) {
+        showToast('Lütfen tüm alanları doldurun!', 'error');
         return;
     }
 
+    const fileInput = document.getElementById('portfolioImage');
     let imageData = null;
 
-    // Yeni resim yüklendi mi?
-    if (imageInput.files && imageInput.files[0]) {
-        try {
-            imageData = await imageToBase64(imageInput.files[0]);
-        } catch (error) {
-            showToast(error.message, 'error');
-            return;
+    try {
+        if (fileInput.files.length > 0) {
+            imageData = await imageToBase64(fileInput.files[0]);
         }
-    } else if (id) {
-        // Düzenleme modunda mevcut resmi koru
-        const existing = Portfolio.getById(id);
-        if (existing) imageData = existing.imageData;
-    }
 
-    if (id) {
-        Portfolio.update(id, { title, description, category, sharedWithParent });
-        showToast('Ürün güncellendi!');
-    } else {
-        Portfolio.add({ studentId, title, description, category, sharedWithParent, imageData });
-        showToast('Ürün eklendi!');
-    }
+        if (id) {
+            await Portfolio.update(id, { title, description, category, sharedWithParent });
+            showToast('Portfolyo güncellendi!');
+        } else {
+            await Portfolio.add({ studentId, title, description, imageData, category, sharedWithParent });
+            showToast('Portfolyo eklendi!');
+        }
 
-    hideModal('portfolioModal');
-    renderPortfolioList();
-    updateStats();
-}
-
-// Paylaşımı değiştir
-function togglePortfolioShare(id) {
-    const item = Portfolio.toggleShare(id);
-    if (item) {
-        showToast(item.sharedWithParent ? 'Ürün veli ile paylaşıldı!' : 'Paylaşım kaldırıldı!');
-        renderPortfolioList();
+        hideModal('portfolioModal');
+        await renderPortfolioList();
+        await updateStats();
+    } catch (error) {
+        console.error('Error saving portfolio:', error);
+        showToast(error.message || 'Bir hata oluştu!', 'error');
     }
 }
 
-// Portfolyo öğesi sil
-async function deletePortfolioItem(id) {
-    const item = Portfolio.getById(id);
+async function deletePortfolio(id) {
+    const item = await Portfolio.getById(id);
     if (!item) return;
 
-    const confirmed = await confirmAction(`"${item.title}" ürününü silmek istediğinize emin misiniz?`);
+    const confirmed = await confirmAction(`"${item.title}" portfolyo öğesini silmek istediğinize emin misiniz?`);
 
     if (confirmed) {
-        Portfolio.delete(id);
-        showToast('Ürün silindi!');
-        renderPortfolioList();
-        updateStats();
+        try {
+            await Portfolio.delete(id);
+            showToast('Portfolyo silindi!');
+            await renderPortfolioList();
+            await updateStats();
+        } catch (error) {
+            console.error('Error deleting portfolio:', error);
+            showToast('Bir hata oluştu!', 'error');
+        }
     }
+}
+
+async function togglePortfolioShare(id) {
+    try {
+        await Portfolio.toggleShare(id);
+        await renderPortfolioList();
+        showToast('Paylaşım durumu güncellendi!');
+    } catch (error) {
+        console.error('Error toggling share:', error);
+        showToast('Bir hata oluştu!', 'error');
+    }
+}
+
+function previewImage(input) {
+    const preview = document.getElementById('imagePreview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            preview.innerHTML = `<img src="${e.target.result}" alt="Preview" style="max-width: 200px;">`;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function getCategoryColor(category) {
+    const colors = {
+        'Sanat': 'purple',
+        'Fen': 'green',
+        'Matematik': 'blue',
+        'Türkçe': 'orange',
+        'Diğer': 'gray'
+    };
+    return colors[category] || 'gray';
 }

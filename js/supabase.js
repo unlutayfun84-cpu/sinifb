@@ -73,19 +73,39 @@ const SupabaseDB = {
             console.error('Supabase error:', error);
             return [];
         }
-        return data;
+        return data.map(a => ({
+            id: a.id,
+            title: a.title,
+            content: a.content,
+            date: a.date,
+            isGeneral: a.is_general !== undefined ? a.is_general : true,
+            targetStudents: a.target_students || []
+        }));
     },
 
     async addAnnouncement(announcement) {
         const supabase = initSupabase();
-        const { data, error } = await supabase.from('announcements').insert([announcement]).select();
+        const { data, error } = await supabase.from('announcements').insert([{
+            id: announcement.id,
+            title: announcement.title,
+            content: announcement.content,
+            date: announcement.date,
+            is_general: announcement.isGeneral !== undefined ? announcement.isGeneral : true,
+            target_students: announcement.targetStudents || []
+        }]).select();
         if (error) throw error;
         return data[0];
     },
 
     async updateAnnouncement(id, updates) {
         const supabase = initSupabase();
-        const { data, error } = await supabase.from('announcements').update(updates).eq('id', id).select();
+        const dbUpdates = {};
+        if (updates.title) dbUpdates.title = updates.title;
+        if (updates.content) dbUpdates.content = updates.content;
+        if (updates.isGeneral !== undefined) dbUpdates.is_general = updates.isGeneral;
+        if (updates.targetStudents !== undefined) dbUpdates.target_students = updates.targetStudents;
+
+        const { data, error } = await supabase.from('announcements').update(dbUpdates).eq('id', id).select();
         if (error) throw error;
         return data[0];
     },

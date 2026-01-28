@@ -1,84 +1,74 @@
 // =============================================
-// SINIF YÖNETİM SİSTEMİ - DUYURU YÖNETİMİ
+// SINIF YÖNETİM SİSTEMİ - DUYURU YÖNETİMİ (SUPABASE)
 // =============================================
 
 const Announcements = {
     // Tüm duyuruları getir
-    getAll() {
-        return Storage.get(CONFIG.STORAGE_KEYS.ANNOUNCEMENTS) || [];
+    async getAll() {
+        return await SupabaseDB.getAnnouncements();
     },
 
     // Tek duyuru getir
-    getById(id) {
-        const announcements = this.getAll();
+    async getById(id) {
+        const announcements = await this.getAll();
         return announcements.find(a => a.id === id);
     },
 
     // Genel duyuruları getir
-    getGeneral() {
-        return this.getAll().filter(a => a.isGeneral);
+    async getGeneral() {
+        const all = await this.getAll();
+        return all.filter(a => a.isGeneral);
     },
 
     // Öğrenciye özel duyuruları getir
-    getForStudent(studentId) {
-        return this.getAll().filter(a =>
+    async getForStudent(studentId) {
+        const all = await this.getAll();
+        return all.filter(a =>
             a.isGeneral || (a.targetStudents && a.targetStudents.includes(studentId))
         );
     },
 
     // Duyuru ekle
-    add(data) {
-        const announcements = this.getAll();
-
+    async add(data) {
         const newAnnouncement = {
             id: generateId(),
             title: data.title.trim(),
             content: data.content.trim(),
+            date: getToday(),
             isGeneral: data.isGeneral || false,
-            targetStudents: data.targetStudents || [],
-            createdAt: getToday(),
-            createdTime: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+            targetStudents: data.targetStudents || []
         };
 
-        announcements.unshift(newAnnouncement); // Yeni duyuruları başa ekle
-        Storage.set(CONFIG.STORAGE_KEYS.ANNOUNCEMENTS, announcements);
-
+        await SupabaseDB.addAnnouncement(newAnnouncement);
         return newAnnouncement;
     },
 
     // Duyuru güncelle
-    update(id, data) {
-        const announcements = this.getAll();
-        const index = announcements.findIndex(a => a.id === id);
-
-        if (index === -1) return null;
-
-        announcements[index] = {
-            ...announcements[index],
-            title: data.title ? data.title.trim() : announcements[index].title,
-            content: data.content ? data.content.trim() : announcements[index].content,
-            isGeneral: data.isGeneral !== undefined ? data.isGeneral : announcements[index].isGeneral,
-            targetStudents: data.targetStudents || announcements[index].targetStudents
+    async update(id, data) {
+        const updates = {
+            title: data.title ? data.title.trim() : undefined,
+            content: data.content ? data.content.trim() : undefined,
+            isGeneral: data.isGeneral,
+            targetStudents: data.targetStudents
         };
 
-        Storage.set(CONFIG.STORAGE_KEYS.ANNOUNCEMENTS, announcements);
-        return announcements[index];
+        // Undefined değerleri temizle
+        Object.keys(updates).forEach(key => updates[key] === undefined && delete updates[key]);
+
+        await SupabaseDB.updateAnnouncement(id, updates);
+        return await this.getById(id);
     },
 
     // Duyuru sil
-    delete(id) {
-        const announcements = this.getAll();
-        const filtered = announcements.filter(a => a.id !== id);
-
-        if (filtered.length === announcements.length) return false;
-
-        Storage.set(CONFIG.STORAGE_KEYS.ANNOUNCEMENTS, filtered);
+    async delete(id) {
+        await SupabaseDB.deleteAnnouncement(id);
         return true;
     },
 
     // Duyuru sayısını getir
-    getCount() {
-        return this.getAll().length;
+    async getCount() {
+        const all = await this.getAll();
+        return all.length;
     }
 };
 
@@ -86,12 +76,12 @@ const Announcements = {
 // DUYURU UI FONKSİYONLARI
 // =============================================
 
-function renderAnnouncementList() {
+async function renderAnnouncementList() {
     const container = document.getElementById('announcementListContainer');
     if (!container) return;
 
-    const announcements = Announcements.getAll();
-    const students = Students.getAll();
+    const announcements = await Announcements.getAll();
+    const students = await Students.getAll();
 
     if (announcements.length === 0) {
         container.innerHTML = showEmptyState('📢', 'Henüz duyuru yok', 'Yeni duyuru eklemek için yukarıdaki butonu kullanın.');
@@ -103,11 +93,11 @@ function renderAnnouncementList() {
     announcements.forEach(announcement => {
         const targetInfo = announcement.isGeneral
             ? '<span class="badge badge-primary">🌐 Genel Duyuru</span>'
-            : `<span class="badge badge-warning">👤 Özel (${announcement.targetStudents.length} öğrenci)</span>`;
+            : `<span class="badge badge-warning">👤 Özel (${announcement.targetStudents?.length || 0} öğrenci)</span>`;
 
         // Hedef öğrencilerin isimlerini al
         let targetNames = '';
-        if (!announcement.isGeneral && announcement.targetStudents.length > 0) {
+        if (!announcement.isGeneral && announcement.targetStudents && announcement.targetStudents.length > 0) {
             const names = announcement.targetStudents.map(id => {
                 const student = students.find(s => s.id === id);
                 return student ? student.name : '';
@@ -125,7 +115,7 @@ function renderAnnouncementList() {
                         ${targetInfo}
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="announcement-date">${formatDate(announcement.createdAt)} ${announcement.createdTime}</span>
+                        <span class="announcement-date">${formatDate(announcement.date)}</span>
                         <button class="btn btn-sm btn-ghost" onclick="editAnnouncement('${announcement.id}')" title="Düzenle">✏️</button>
                         <button class="btn btn-sm btn-ghost text-danger" onclick="deleteAnnouncement('${announcement.id}')" title="Sil">🗑️</button>
                     </div>
@@ -141,14 +131,14 @@ function renderAnnouncementList() {
 }
 
 // Veli için duyuruları göster
-function renderParentAnnouncements() {
+async function renderParentAnnouncements() {
     const container = document.getElementById('parentAnnouncementsContainer');
     if (!container) return;
 
     const user = Auth.getCurrentUser();
     if (!user || user.type !== 'parent') return;
 
-    const announcements = Announcements.getForStudent(user.studentId);
+    const announcements = await Announcements.getForStudent(user.studentId);
 
     if (announcements.length === 0) {
         container.innerHTML = showEmptyState('📢', 'Henüz duyuru yok');
@@ -164,7 +154,7 @@ function renderParentAnnouncements() {
                     <h3 class="announcement-title">
                         ${announcement.isGeneral ? '📢' : '💌'} ${announcement.title}
                     </h3>
-                    <span class="announcement-date">${formatDate(announcement.createdAt)}</span>
+                    <span class="announcement-date">${formatDate(announcement.date)}</span>
                 </div>
                 <p class="announcement-content">${announcement.content}</p>
             </div>
@@ -176,7 +166,7 @@ function renderParentAnnouncements() {
 }
 
 // Duyuru ekleme modalını aç
-function openAddAnnouncementModal() {
+async function openAddAnnouncementModal() {
     document.getElementById('announcementModalTitle').textContent = '➕ Yeni Duyuru';
     document.getElementById('announcementForm').reset();
     document.getElementById('announcementId').value = '';
@@ -184,14 +174,14 @@ function openAddAnnouncementModal() {
     toggleStudentSelection();
 
     // Öğrenci listesini yükle
-    loadStudentCheckboxes();
+    await loadStudentCheckboxes();
 
     showModal('announcementModal');
 }
 
 // Duyuru düzenleme modalını aç
-function editAnnouncement(id) {
-    const announcement = Announcements.getById(id);
+async function editAnnouncement(id) {
+    const announcement = await Announcements.getById(id);
     if (!announcement) return;
 
     document.getElementById('announcementModalTitle').textContent = '✏️ Duyuru Düzenle';
@@ -200,18 +190,18 @@ function editAnnouncement(id) {
     document.getElementById('announcementContent').value = announcement.content;
     document.getElementById('isGeneral').checked = announcement.isGeneral;
 
-    loadStudentCheckboxes(announcement.targetStudents);
+    await loadStudentCheckboxes(announcement.targetStudents);
     toggleStudentSelection();
 
     showModal('announcementModal');
 }
 
 // Öğrenci checkbox listesini yükle
-function loadStudentCheckboxes(selectedIds = []) {
+async function loadStudentCheckboxes(selectedIds = []) {
     const container = document.getElementById('studentCheckboxContainer');
     if (!container) return;
 
-    const students = Students.getAll();
+    const students = await Students.getAll();
     container.innerHTML = createStudentCheckboxList(students, selectedIds);
 }
 
@@ -226,7 +216,7 @@ function toggleStudentSelection() {
 }
 
 // Duyuru formunu kaydet
-function saveAnnouncement(event) {
+async function saveAnnouncement(event) {
     event.preventDefault();
 
     const id = document.getElementById('announcementId').value;
@@ -251,30 +241,40 @@ function saveAnnouncement(event) {
         }
     }
 
-    if (id) {
-        Announcements.update(id, { title, content, isGeneral, targetStudents });
-        showToast('Duyuru güncellendi!');
-    } else {
-        Announcements.add({ title, content, isGeneral, targetStudents });
-        showToast('Duyuru oluşturuldu!');
-    }
+    try {
+        if (id) {
+            await Announcements.update(id, { title, content, isGeneral, targetStudents });
+            showToast('Duyuru güncellendi!');
+        } else {
+            await Announcements.add({ title, content, isGeneral, targetStudents });
+            showToast('Duyuru oluşturuldu!');
+        }
 
-    hideModal('announcementModal');
-    renderAnnouncementList();
-    updateStats();
+        hideModal('announcementModal');
+        await renderAnnouncementList();
+        await updateStats();
+    } catch (error) {
+        console.error('Error saving announcement:', error);
+        showToast('Bir hata oluştu!', 'error');
+    }
 }
 
 // Duyuru sil
 async function deleteAnnouncement(id) {
-    const announcement = Announcements.getById(id);
+    const announcement = await Announcements.getById(id);
     if (!announcement) return;
 
     const confirmed = await confirmAction(`"${announcement.title}" duyurusunu silmek istediğinize emin misiniz?`);
 
     if (confirmed) {
-        Announcements.delete(id);
-        showToast('Duyuru silindi!');
-        renderAnnouncementList();
-        updateStats();
+        try {
+            await Announcements.delete(id);
+            showToast('Duyuru silindi!');
+            await renderAnnouncementList();
+            await updateStats();
+        } catch (error) {
+            console.error('Error deleting announcement:', error);
+            showToast('Bir hata oluştu!', 'error');
+        }
     }
 }
