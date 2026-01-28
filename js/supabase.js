@@ -24,6 +24,7 @@ function initSupabase() {
 const SupabaseDB = {
     // Öğrenciler
     async getStudents() {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('students').select('*').order('created_at', { ascending: true });
         if (error) {
             console.error('Supabase error:', error);
@@ -37,6 +38,7 @@ const SupabaseDB = {
     },
 
     async addStudent(student) {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('students').insert([{
             id: student.id,
             name: student.name,
@@ -47,6 +49,7 @@ const SupabaseDB = {
     },
 
     async updateStudent(id, updates) {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('students').update({
             name: updates.name,
             parent_password: updates.parentPassword
@@ -56,6 +59,7 @@ const SupabaseDB = {
     },
 
     async deleteStudent(id) {
+        const supabase = initSupabase();
         const { error } = await supabase.from('students').delete().eq('id', id);
         if (error) throw error;
         return true;
@@ -63,6 +67,7 @@ const SupabaseDB = {
 
     // Duyurular
     async getAnnouncements() {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('announcements').select('*').order('date', { ascending: false });
         if (error) {
             console.error('Supabase error:', error);
@@ -72,18 +77,21 @@ const SupabaseDB = {
     },
 
     async addAnnouncement(announcement) {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('announcements').insert([announcement]).select();
         if (error) throw error;
         return data[0];
     },
 
     async updateAnnouncement(id, updates) {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('announcements').update(updates).eq('id', id).select();
         if (error) throw error;
         return data[0];
     },
 
     async deleteAnnouncement(id) {
+        const supabase = initSupabase();
         const { error } = await supabase.from('announcements').delete().eq('id', id);
         if (error) throw error;
         return true;
@@ -91,6 +99,7 @@ const SupabaseDB = {
 
     // Portfolyo
     async getPortfolio() {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('portfolio').select('*').order('date', { ascending: false });
         if (error) {
             console.error('Supabase error:', error);
@@ -109,6 +118,7 @@ const SupabaseDB = {
     },
 
     async addPortfolio(portfolio) {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('portfolio').insert([{
             id: portfolio.id,
             student_id: portfolio.studentId,
@@ -124,6 +134,7 @@ const SupabaseDB = {
     },
 
     async updatePortfolio(id, updates) {
+        const supabase = initSupabase();
         const dbUpdates = {};
         if (updates.title) dbUpdates.title = updates.title;
         if (updates.description !== undefined) dbUpdates.description = updates.description;
@@ -136,6 +147,7 @@ const SupabaseDB = {
     },
 
     async deletePortfolio(id) {
+        const supabase = initSupabase();
         const { error } = await supabase.from('portfolio').delete().eq('id', id);
         if (error) throw error;
         return true;
@@ -143,6 +155,7 @@ const SupabaseDB = {
 
     // Ödevler
     async getHomework() {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('homework').select('*').order('due_date', { ascending: false });
         if (error) {
             console.error('Supabase error:', error);
@@ -159,6 +172,7 @@ const SupabaseDB = {
     },
 
     async addHomework(homework) {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('homework').insert([{
             id: homework.id,
             title: homework.title,
@@ -172,6 +186,7 @@ const SupabaseDB = {
     },
 
     async updateHomework(id, updates) {
+        const supabase = initSupabase();
         const dbUpdates = {};
         if (updates.title) dbUpdates.title = updates.title;
         if (updates.description !== undefined) dbUpdates.description = updates.description;
@@ -184,6 +199,7 @@ const SupabaseDB = {
     },
 
     async deleteHomework(id) {
+        const supabase = initSupabase();
         const { error } = await supabase.from('homework').delete().eq('id', id);
         if (error) throw error;
         return true;
@@ -191,6 +207,7 @@ const SupabaseDB = {
 
     // Haftalık Değerlendirmeler
     async getWeeklyEvaluations() {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('weekly_evaluations').select('*').order('week', { ascending: true });
         if (error) {
             console.error('Supabase error:', error);
@@ -208,6 +225,7 @@ const SupabaseDB = {
     },
 
     async addWeeklyEvaluation(evaluation) {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('weekly_evaluations').insert([{
             id: evaluation.id,
             student_id: evaluation.studentId,
@@ -222,6 +240,7 @@ const SupabaseDB = {
     },
 
     async updateWeeklyEvaluation(id, updates) {
+        const supabase = initSupabase();
         const dbUpdates = {};
         if (updates.subjects) dbUpdates.subjects = updates.subjects;
         if (updates.learned !== undefined) dbUpdates.learned = updates.learned;
@@ -233,6 +252,7 @@ const SupabaseDB = {
     },
 
     async deleteWeeklyEvaluation(id) {
+        const supabase = initSupabase();
         const { error } = await supabase.from('weekly_evaluations').delete().eq('id', id);
         if (error) throw error;
         return true;
@@ -240,12 +260,14 @@ const SupabaseDB = {
 
     // Admin Şifresi
     async getAdminPassword() {
+        const supabase = initSupabase();
         const { data, error } = await supabase.from('admin_settings').select('value').eq('key', 'admin_password').single();
         if (error || !data) return null;
         return data.value;
     },
 
     async setAdminPassword(password) {
+        const supabase = initSupabase();
         const { error } = await supabase.from('admin_settings').upsert({
             key: 'admin_password',
             value: password,
