@@ -7,8 +7,15 @@ const SUPABASE_CONFIG = {
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtdHJjdXhqZGF0bGVwa3Zkd25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MTQ2NDAsImV4cCI6MjA4NTE5MDY0MH0.vs6PILTcy6l8lQGtmOBONYkCQgL_Rx7o2gFLTzliv_M'
 };
 
-// Supabase client oluştur (CDN üzerinden)
-const supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+// Supabase client oluştur (CDN yüklendikten sonra)
+let supabaseClient;
+
+function initSupabase() {
+    if (!supabaseClient && window.supabase) {
+        supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    }
+    return supabaseClient;
+}
 
 // =============================================
 // SUPABASE HELPER FONKSİYONLARI
