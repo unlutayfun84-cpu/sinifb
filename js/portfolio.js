@@ -115,7 +115,11 @@ async function renderParentPortfolio() {
     portfolio.forEach(item => {
         html += `
             <div class="portfolio-card">
-                ${item.imageData ? `<img src="${item.imageData}" alt="${item.title}" class="portfolio-image">` : '<div class="portfolio-placeholder">📁</div>'}
+                ${item.imageData ? `
+                    <a href="${item.imageData}" target="_blank" title="Büyütmek için tıklayın">
+                        <img src="${item.imageData}" alt="${item.title}" class="portfolio-image" style="cursor: pointer;">
+                    </a>
+                ` : '<div class="portfolio-placeholder">📁</div>'}
                 <div class="portfolio-content">
                     <h3>${item.title}</h3>
                     <p>${item.description || 'Açıklama yok'}</p>
@@ -123,6 +127,13 @@ async function renderParentPortfolio() {
                         <span class="badge badge-${getCategoryColor(item.category)}">${item.category}</span>
                         <span>📅 ${formatDate(item.date)}</span>
                     </div>
+                    ${item.imageData ? `
+                        <div style="margin-top: 10px;">
+                            <a href="${item.imageData}" download="${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.png" class="btn btn-sm btn-primary">
+                                📥 Fotoğrafı İndir
+                            </a>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
         `;
