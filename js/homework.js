@@ -124,9 +124,17 @@ async function renderParentHomework() {
         return;
     }
 
+    // Ders bilgilerini al
+    const allSubjects = Curriculum.getAllSubjects();
+
     let html = '<div class="homework-list">';
     homeworks.forEach(hw => {
         const isOverdue = hw.dueDate < getToday();
+
+        // Ders bilgisini bul
+        const subjectInfo = hw.subject ? allSubjects.find(s => s.key === hw.subject) : null;
+        const subjectDisplay = subjectInfo ? `${subjectInfo.icon} ${subjectInfo.name}` : '';
+
         html += `
             <div class="homework-card ${isOverdue ? 'overdue' : ''}">
                 <div class="homework-header">
@@ -135,7 +143,16 @@ async function renderParentHomework() {
                         ${isOverdue ? '⏰ Süresi Geçti' : '✅ Aktif'}
                     </span>
                 </div>
+                ${subjectDisplay ? `<p class="text-primary"><strong>${subjectDisplay}</strong></p>` : ''}
                 <p>${hw.description || 'Açıklama yok'}</p>
+                ${hw.fileName && hw.fileData ? `
+                    <div class="homework-file" style="margin: 8px 0; padding: 12px; background: var(--bg-secondary); border-radius: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5rem;">${hw.fileName.endsWith('.pdf') ? '📄' : '📷'}</span>
+                        <a href="${hw.fileData}" download="${hw.fileName}" class="btn btn-sm btn-primary">
+                            📥 ${hw.fileName} - İndir
+                        </a>
+                    </div>
+                ` : ''}
                 <div class="homework-meta">
                     <span>📅 Son Tarih: ${formatDate(hw.dueDate)}</span>
                 </div>
