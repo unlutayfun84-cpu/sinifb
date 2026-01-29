@@ -75,22 +75,22 @@ async function renderWeeklyEvaluationList() {
         if (studentEvals.length === 0) {
             html += '<p class="text-muted">Henüz değerlendirme yok</p>';
         } else {
-            studentEvals.sort((a, b) => b.week - a.week).forEach(eval => {
+            studentEvals.sort((a, b) => b.week - a.week).forEach(ev => {
                 html += `
                     <div class="eval-card">
                         <div class="eval-card-header">
-                            <h4>📅 Hafta ${eval.week}</h4>
+                            <h4>📅 Hafta ${ev.week}</h4>
                             <div class="flex gap-2">
-                                <span class="text-muted">${formatDate(eval.date)}</span>
-                                <button class="btn btn-sm btn-ghost" onclick="editWeeklyEval('${eval.id}')">✏️</button>
-                                <button class="btn btn-sm btn-ghost text-danger" onclick="deleteWeeklyEval('${eval.id}')">🗑️</button>
+                                <span class="text-muted">${formatDate(ev.date)}</span>
+                                <button class="btn btn-sm btn-ghost" onclick="editWeeklyEval('${ev.id}')">✏️</button>
+                                <button class="btn btn-sm btn-ghost text-danger" onclick="deleteWeeklyEval('${ev.id}')">🗑️</button>
                             </div>
                         </div>
                         <div class="eval-subjects">
-                            ${renderSubjectStars(eval.subjects)}
+                            ${renderSubjectStars(ev.subjects)}
                         </div>
-                        ${eval.learned ? `<p><strong>✅ Öğrendikleri:</strong> ${eval.learned}</p>` : ''}
-                        ${eval.toImprove ? `<p><strong>📝 Geliştirilecekler:</strong> ${eval.toImprove}</p>` : ''}
+                        ${ev.learned ? `<p><strong>✅ Öğrendikleri:</strong> ${ev.learned}</p>` : ''}
+                        ${ev.toImprove ? `<p><strong>📝 Geliştirilecekler:</strong> ${ev.toImprove}</p>` : ''}
                     </div>
                 `;
             });
@@ -119,8 +119,8 @@ async function renderParentWeeklyEvaluations() {
 
     // Ortalama hesapla
     const avgScores = {};
-    evaluations.forEach(eval => {
-        Object.entries(eval.subjects).forEach(([subject, score]) => {
+    evaluations.forEach(ev => {
+        Object.entries(ev.subjects).forEach(([subject, score]) => {
             if (!avgScores[subject]) avgScores[subject] = [];
             avgScores[subject].push(score);
         });
@@ -140,18 +140,18 @@ async function renderParentWeeklyEvaluations() {
     html += '</div></div>';
 
     html += '<div class="eval-timeline">';
-    evaluations.sort((a, b) => b.week - a.week).forEach(eval => {
+    evaluations.sort((a, b) => b.week - a.week).forEach(ev => {
         html += `
             <div class="eval-card">
                 <div class="eval-card-header">
-                    <h4>📅 Hafta ${eval.week}</h4>
-                    <span class="text-muted">${formatDate(eval.date)}</span>
+                    <h4>📅 Hafta ${ev.week}</h4>
+                    <span class="text-muted">${formatDate(ev.date)}</span>
                 </div>
                 <div class="eval-subjects">
-                    ${renderSubjectStars(eval.subjects)}
+                    ${renderSubjectStars(ev.subjects)}
                 </div>
-                ${eval.learned ? `<p><strong>✅ Öğrendikleri:</strong> ${eval.learned}</p>` : ''}
-                ${eval.toImprove ? `<p><strong>📝 Geliştirilecekler:</strong> ${eval.toImprove}</p>` : ''}
+                ${ev.learned ? `<p><strong>✅ Öğrendikleri:</strong> ${ev.learned}</p>` : ''}
+                ${ev.toImprove ? `<p><strong>📝 Geliştirilecekler:</strong> ${ev.toImprove}</p>` : ''}
             </div>
         `;
     });
@@ -165,15 +165,20 @@ async function openWeeklyEvalModal(studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
-    document.getElementById('evalModalTitle').textContent = `📊 ${student.name} - Haftalık Değerlendirme`;
-    document.getElementById('evalForm').reset();
-    document.getElementById('evalId').value = '';
-    document.getElementById('evalStudentId').value = studentId;
+    const titleEl = document.getElementById('weeklyEvalModalTitle');
+    if (titleEl) {
+        // Element varsa başlığı güncelle, yoksa hata vermeden geç
+        titleEl.textContent = `📊 ${student.name} - Haftalık Değerlendirme`;
+    } else {
+        console.warn('WeeklyEval: weeklyEvalModalTitle element not found');
+    }
+    document.getElementById('weeklyEvalForm').reset();
+    document.getElementById('weeklyEvalStudentId').value = studentId;
 
     // Hafta numarasını otomatik belirle
     const existingEvals = await WeeklyEvaluation.getByStudent(studentId);
     const nextWeek = existingEvals.length > 0 ? Math.max(...existingEvals.map(e => e.week)) + 1 : 1;
-    document.getElementById('evalWeek').value = nextWeek;
+    document.getElementById('weeklyEvalWeek').value = nextWeek;
 
     // Ders listesini yükle
     loadSubjectInputs();
@@ -182,26 +187,25 @@ async function openWeeklyEvalModal(studentId) {
 }
 
 async function editWeeklyEval(id) {
-    const eval = await WeeklyEvaluation.getById(id);
-    if (!eval) return;
+    const evaluation = await WeeklyEvaluation.getById(id);
+    if (!evaluation) return;
 
     const students = await Students.getAll();
-    const student = students.find(s => s.id === eval.studentId);
+    const student = students.find(s => s.id === evaluation.studentId);
 
-    document.getElementById('evalModalTitle').textContent = `✏️ ${student?.name || 'Öğrenci'} - Değerlendirme Düzenle`;
-    document.getElementById('evalId').value = eval.id;
-    document.getElementById('evalStudentId').value = eval.studentId;
-    document.getElementById('evalWeek').value = eval.week;
-    document.getElementById('evalLearned').value = eval.learned;
-    document.getElementById('evalToImprove').value = eval.toImprove;
+    document.getElementById('weeklyEvalModalTitle').textContent = `✏️ ${student?.name || 'Öğrenci'} - Değerlendirme Düzenle`;
+    document.getElementById('weeklyEvalStudentId').value = evaluation.studentId;
+    document.getElementById('weeklyEvalWeek').value = evaluation.week;
+    document.getElementById('weeklyEvalLearned').value = evaluation.learned;
+    document.getElementById('weeklyEvalNeedsWork').value = evaluation.toImprove;
 
-    loadSubjectInputs(eval.subjects);
+    loadSubjectInputs(evaluation.subjects);
 
     showModal('weeklyEvalModal');
 }
 
 function loadSubjectInputs(existingScores = {}) {
-    const container = document.getElementById('subjectInputsContainer');
+    const container = document.getElementById('weeklyEvalSubjects');
     const subjects = ['Türkçe', 'Matematik', 'Hayat Bilgisi', 'İngilizce', 'Beden Eğitimi', 'Müzik', 'Görsel Sanatlar'];
 
     let html = '';
@@ -233,14 +237,13 @@ function setStarRating(subject, rating) {
     document.getElementById(`score_${subject.replace(/\s/g, '_')}`).value = rating;
 }
 
-async function saveWeeklyEval(event) {
+async function saveWeeklyEvaluation(event) {
     event.preventDefault();
 
-    const id = document.getElementById('evalId').value;
-    const studentId = document.getElementById('evalStudentId').value;
-    const week = parseInt(document.getElementById('evalWeek').value);
-    const learned = document.getElementById('evalLearned').value.trim();
-    const toImprove = document.getElementById('evalToImprove').value.trim();
+    const studentId = document.getElementById('weeklyEvalStudentId').value;
+    const week = parseInt(document.getElementById('weeklyEvalWeek').value);
+    const learned = document.getElementById('weeklyEvalLearned').value.trim();
+    const toImprove = document.getElementById('weeklyEvalNeedsWork').value.trim();
 
     const subjects = {};
     ['Türkçe', 'Matematik', 'Hayat Bilgisi', 'İngilizce', 'Beden Eğitimi', 'Müzik', 'Görsel Sanatlar'].forEach(subject => {
@@ -249,8 +252,11 @@ async function saveWeeklyEval(event) {
     });
 
     try {
-        if (id) {
-            await WeeklyEvaluation.update(id, { subjects, learned, toImprove });
+        // Mevcut değerlendirme var mı kontrol et (id saklamadığımız için week ve studentId ile bakıyoruz)
+        const existing = await WeeklyEvaluation.getByWeek(studentId, week);
+
+        if (existing) {
+            await WeeklyEvaluation.update(existing.id, { subjects, learned, toImprove });
             showToast('Değerlendirme güncellendi!');
         } else {
             await WeeklyEvaluation.add({ studentId, week, subjects, learned, toImprove });

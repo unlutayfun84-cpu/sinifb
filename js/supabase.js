@@ -30,7 +30,7 @@ const SupabaseDB = {
             console.error('Supabase error:', error);
             return [];
         }
-        return data.map(s => ({
+        return (data || []).map(s => ({
             id: s.id,
             name: s.name,
             parentPassword: s.parent_password
@@ -73,7 +73,7 @@ const SupabaseDB = {
             console.error('Supabase error:', error);
             return [];
         }
-        return data.map(a => ({
+        return (data || []).map(a => ({
             id: a.id,
             title: a.title,
             content: a.content,
@@ -125,7 +125,7 @@ const SupabaseDB = {
             console.error('Supabase error:', error);
             return [];
         }
-        return data.map(p => ({
+        return (data || []).map(p => ({
             id: p.id,
             studentId: p.student_id,
             title: p.title,
@@ -181,7 +181,7 @@ const SupabaseDB = {
             console.error('Supabase error:', error);
             return [];
         }
-        return data.map(h => ({
+        return (data || []).map(h => ({
             id: h.id,
             title: h.title,
             description: h.description,
@@ -233,7 +233,7 @@ const SupabaseDB = {
             console.error('Supabase error:', error);
             return [];
         }
-        return data.map(e => ({
+        return (data || []).map(e => ({
             id: e.id,
             studentId: e.student_id,
             week: e.week,
@@ -274,6 +274,69 @@ const SupabaseDB = {
     async deleteWeeklyEvaluation(id) {
         const supabase = initSupabase();
         const { error } = await supabase.from('weekly_evaluations').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+    },
+
+    // Değerlendirmeler (Term-based)
+    async getEvaluations() {
+        const supabase = initSupabase();
+        const { data, error } = await supabase.from('evaluations').select('*').order('date', { ascending: false });
+        if (error) {
+            console.error('Supabase error:', error);
+            return [];
+        }
+        return (data || []).map(e => ({
+            id: e.id,
+            studentId: e.student_id,
+            period: e.period,
+            date: e.date,
+            academic: e.academic,
+            social: e.social,
+            artistic: e.artistic,
+            physical: e.physical,
+            communication: e.communication,
+            notes: e.notes
+        }));
+    },
+
+    async addEvaluation(evaluation) {
+        const supabase = initSupabase();
+        const { data, error } = await supabase.from('evaluations').insert([{
+            id: evaluation.id,
+            student_id: evaluation.studentId,
+            period: evaluation.period,
+            date: evaluation.date,
+            academic: evaluation.academic,
+            social: evaluation.social,
+            artistic: evaluation.artistic,
+            physical: evaluation.physical,
+            communication: evaluation.communication,
+            notes: evaluation.notes
+        }]).select();
+        if (error) throw error;
+        return data[0];
+    },
+
+    async updateEvaluation(id, updates) {
+        const supabase = initSupabase();
+        const dbUpdates = {};
+        if (updates.period) dbUpdates.period = updates.period;
+        if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+        if (updates.academic !== undefined) dbUpdates.academic = updates.academic;
+        if (updates.social !== undefined) dbUpdates.social = updates.social;
+        if (updates.artistic !== undefined) dbUpdates.artistic = updates.artistic;
+        if (updates.physical !== undefined) dbUpdates.physical = updates.physical;
+        if (updates.communication !== undefined) dbUpdates.communication = updates.communication;
+
+        const { data, error } = await supabase.from('evaluations').update(dbUpdates).eq('id', id).select();
+        if (error) throw error;
+        return data[0];
+    },
+
+    async deleteEvaluation(id) {
+        const supabase = initSupabase();
+        const { error } = await supabase.from('evaluations').delete().eq('id', id);
         if (error) throw error;
         return true;
     },

@@ -133,8 +133,26 @@ async function openAddHomeworkModal() {
     document.getElementById('homeworkDueDate').value = getToday();
 
     const students = await Students.getAll();
-    document.getElementById('homeworkStudentContainer').innerHTML = createStudentCheckboxList(students, []);
+    document.getElementById('homeworkStudentCheckboxContainer').innerHTML = createStudentCheckboxList(students, []);
     showModal('homeworkModal');
+}
+
+// Öğrenci seçim bölümünü göster/gizle
+async function toggleHomeworkStudentSelection() {
+    const isGeneral = document.getElementById('isHomeworkGeneral').checked;
+    const section = document.getElementById('homeworkStudentSelectionSection');
+
+    if (isGeneral) {
+        section.style.display = 'none';
+    } else {
+        section.style.display = 'block';
+        // Öğrenci listesini yükle (henüz yüklenmemişse)
+        const container = document.getElementById('homeworkStudentCheckboxContainer');
+        if (container && container.innerHTML.trim() === '') {
+            const students = await Students.getAll();
+            container.innerHTML = createStudentCheckboxList(students, []);
+        }
+    }
 }
 
 async function editHomework(id) {
@@ -148,7 +166,7 @@ async function editHomework(id) {
     document.getElementById('homeworkDueDate').value = homework.dueDate;
 
     const students = await Students.getAll();
-    document.getElementById('homeworkStudentContainer').innerHTML = createStudentCheckboxList(students, homework.studentIds);
+    document.getElementById('homeworkStudentCheckboxContainer').innerHTML = createStudentCheckboxList(students, homework.studentIds);
     showModal('homeworkModal');
 }
 
@@ -165,8 +183,19 @@ async function saveHomework(event) {
         return;
     }
 
-    const checkboxes = document.querySelectorAll('#homeworkStudentContainer input[type="checkbox"]:checked');
-    const studentIds = Array.from(checkboxes).map(cb => cb.value);
+    // Tüm sınıfa mı yoksa seçili öğrencilere mi atanacak?
+    const isGeneral = document.getElementById('isHomeworkGeneral').checked;
+    let studentIds = [];
+
+    if (isGeneral) {
+        // Tüm öğrencileri al
+        const allStudents = await Students.getAll();
+        studentIds = allStudents.map(s => s.id);
+    } else {
+        // Seçili öğrencileri al
+        const checkboxes = document.querySelectorAll('#homeworkStudentCheckboxContainer input[type="checkbox"]:checked');
+        studentIds = Array.from(checkboxes).map(cb => cb.value);
+    }
 
     if (studentIds.length === 0) {
         showToast('En az bir öğrenci seçmelisiniz!', 'error');

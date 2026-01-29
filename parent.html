@@ -122,11 +122,12 @@
             initializeParentDashboard();
         });
 
-        function initializeParentDashboard() {
-            renderParentAnnouncements();
-            renderParentHomework();
-            renderParentPortfolio();
-            renderParentWeeklyEvaluations();
+        async function initializeParentDashboard() {
+            await renderParentAnnouncements();
+            await renderParentHomework();
+            await renderParentPortfolio();
+            await renderParentWeeklyEvaluations();
+            await renderParentEvaluations();
         }
 
         function switchParentTab(tabName) {

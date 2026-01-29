@@ -3,15 +3,14 @@
 // =============================================
 
 const Evaluations = {
-    getAll() { return Storage.get(CONFIG.STORAGE_KEYS.EVALUATIONS) || []; },
-    getById(id) { return this.getAll().find(e => e.id === id); },
-    getByStudent(studentId) { return this.getAll().filter(e => e.studentId === studentId); },
-    getLatestByStudent(studentId) {
-        const evals = this.getByStudent(studentId);
+    async getAll() { return await SupabaseDB.getEvaluations(); },
+    async getById(id) { const all = await this.getAll(); return all.find(e => e.id === id); },
+    async getByStudent(studentId) { const all = await this.getAll(); return all.filter(e => e.studentId === studentId); },
+    async getLatestByStudent(studentId) {
+        const evals = await this.getByStudent(studentId);
         return evals.sort((a, b) => new Date(b.date) - new Date(a.date))[0] || null;
     },
-    add(data) {
-        const items = this.getAll();
+    async add(data) {
         const newItem = {
             id: generateId(),
             studentId: data.studentId,
@@ -24,26 +23,18 @@ const Evaluations = {
             communication: data.communication || 3,
             notes: data.notes || ''
         };
-        items.unshift(newItem);
-        Storage.set(CONFIG.STORAGE_KEYS.EVALUATIONS, items);
+        await SupabaseDB.addEvaluation(newItem);
         return newItem;
     },
-    update(id, data) {
-        const items = this.getAll();
-        const index = items.findIndex(e => e.id === id);
-        if (index === -1) return null;
-        items[index] = { ...items[index], ...data };
-        Storage.set(CONFIG.STORAGE_KEYS.EVALUATIONS, items);
-        return items[index];
+    async update(id, data) {
+        await SupabaseDB.updateEvaluation(id, data);
+        return await this.getById(id);
     },
-    delete(id) {
-        const items = this.getAll();
-        const filtered = items.filter(e => e.id !== id);
-        if (filtered.length === items.length) return false;
-        Storage.set(CONFIG.STORAGE_KEYS.EVALUATIONS, filtered);
+    async delete(id) {
+        await SupabaseDB.deleteEvaluation(id);
         return true;
     },
-    getCount() { return this.getAll().length; },
+    async getCount() { const all = await this.getAll(); return all.length; },
     getPeriods() { return ['1. Dönem', '2. Dönem', 'Yıl Sonu']; },
     getCategories() {
         return [
@@ -61,17 +52,17 @@ const Evaluations = {
 };
 
 // UI FONKSİYONLARI
-function renderEvaluationList() {
+async function renderEvaluationList() {
     const container = document.getElementById('evaluationListContainer');
     if (!container) return;
-    const students = Students.getAll();
+    const students = await Students.getAll();
     if (students.length === 0) {
         container.innerHTML = showEmptyState('⭐', 'Henüz öğrenci yok', 'Önce öğrenci ekleyin.');
         return;
     }
     let html = '<div class="table-container"><table class="table"><thead><tr><th>Öğrenci</th><th>Son Değerlendirme</th><th>Ortalama</th><th>İşlemler</th></tr></thead><tbody>';
-    students.forEach(student => {
-        const latest = Evaluations.getLatestByStudent(student.id);
+    for (const student of students) {
+        const latest = await Evaluations.getLatestByStudent(student.id);
         let avgBadge = '<span class="text-muted">-</span>';
         let periodInfo = '<span class="text-muted">Henüz değerlendirilmedi</span>';
         if (latest) {
@@ -80,17 +71,17 @@ function renderEvaluationList() {
             periodInfo = `${latest.period} - ${formatDate(latest.date)}`;
         }
         html += `<tr><td><div class="flex items-center gap-2"><span>👤</span><strong>${student.name}</strong></div></td><td>${periodInfo}</td><td>${avgBadge}</td><td><div class="flex gap-2"><button class="btn btn-sm btn-primary" onclick="openAddEvaluationModal('${student.id}')">➕ Değerlendir</button><button class="btn btn-sm btn-outline" onclick="viewStudentEvaluations('${student.id}')">📊 Geçmiş</button></div></td></tr>`;
-    });
+    }
     html += '</tbody></table></div>';
     container.innerHTML = html;
 }
 
-function renderParentEvaluations() {
+async function renderParentEvaluations() {
     const container = document.getElementById('parentEvaluationsContainer');
     if (!container) return;
     const user = Auth.getCurrentUser();
     if (!user || user.type !== 'parent') return;
-    const evals = Evaluations.getByStudent(user.studentId);
+    const evals = await Evaluations.getByStudent(user.studentId);
     if (evals.length === 0) { container.innerHTML = showEmptyState('⭐', 'Henüz değerlendirme yok'); return; }
     const categories = Evaluations.getCategories();
     let html = '<div class="announcement-list">';
@@ -107,8 +98,8 @@ function renderParentEvaluations() {
     container.innerHTML = html;
 }
 
-function openAddEvaluationModal(studentId) {
-    const student = Students.getById(studentId);
+async function openAddEvaluationModal(studentId) {
+    const student = await Students.getById(studentId);
     if (!student) return;
     document.getElementById('evaluationModalTitle').textContent = `⭐ ${student.name} - Değerlendirme`;
     document.getElementById('evaluationForm').reset();
@@ -130,7 +121,7 @@ function loadPeriodSelect() {
     select.innerHTML = Evaluations.getPeriods().map(p => `<option value="${p}">${p}</option>`).join('');
 }
 
-function saveEvaluation(event) {
+async function saveEvaluation(event) {
     event.preventDefault();
     const id = document.getElementById('evaluationId').value;
     const studentId = document.getElementById('evaluationStudentId').value;
@@ -142,16 +133,16 @@ function saveEvaluation(event) {
         const input = document.querySelector(`input[name="${cat.key}"]`);
         data[cat.key] = input ? parseInt(input.value) : 3;
     });
-    if (id) { Evaluations.update(id, data); showToast('Değerlendirme güncellendi!'); }
-    else { Evaluations.add(data); showToast('Değerlendirme kaydedildi!'); }
+    if (id) { await Evaluations.update(id, data); showToast('Değerlendirme güncellendi!'); }
+    else { await Evaluations.add(data); showToast('Değerlendirme kaydedildi!'); }
     hideModal('evaluationModal');
-    renderEvaluationList();
+    await renderEvaluationList();
 }
 
-function viewStudentEvaluations(studentId) {
-    const student = Students.getById(studentId);
+async function viewStudentEvaluations(studentId) {
+    const student = await Students.getById(studentId);
     if (!student) return;
-    const evals = Evaluations.getByStudent(studentId);
+    const evals = await Evaluations.getByStudent(studentId);
     const categories = Evaluations.getCategories();
     let html = `<h3 class="font-bold mb-4">👤 ${student.name}</h3>`;
     if (evals.length === 0) { html += '<p class="text-muted">Henüz değerlendirme yok.</p>'; }
@@ -171,9 +162,9 @@ function viewStudentEvaluations(studentId) {
 
 async function deleteEvaluation(id) {
     if (await confirmAction('Bu değerlendirmeyi silmek istiyor musunuz?')) {
-        Evaluations.delete(id);
+        await Evaluations.delete(id);
         showToast('Değerlendirme silindi!');
         hideModal('evaluationHistoryModal');
-        renderEvaluationList();
+        await renderEvaluationList();
     }
 }

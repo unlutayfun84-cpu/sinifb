@@ -246,7 +246,7 @@
                 <h2 id="portfolioModalTitle">➕ Yeni Ürün</h2>
                 <button class="modal-close" onclick="hideModal('portfolioModal')">✕</button>
             </div>
-            <form id="portfolioForm" class="modal-body" onsubmit="savePortfolioItem(event)">
+            <form id="portfolioForm" class="modal-body" onsubmit="savePortfolio(event)">
                 <input type="hidden" id="portfolioId">
                 <div class="form-group">
                     <label class="form-label">Öğrenci *</label>
@@ -473,15 +473,15 @@
             initializeDashboard();
         });
 
-        function initializeDashboard() {
-            updateStats();
-            renderStudentList();
-            renderAnnouncementList();
-            renderPortfolioList();
-            renderHomeworkList();
-            renderWeeklyEvaluationList();
-            initializeGeneralEvaluation();
-            showRecentAnnouncements();
+        async function initializeDashboard() {
+            await updateStats();
+            await renderStudentList();
+            await renderAnnouncementList();
+            await renderPortfolioList();
+            await renderHomeworkList();
+            await renderWeeklyEvaluationList();
+            await initializeGeneralEvaluation();
+            await showRecentAnnouncements();
         }
 
         async function updateStats() {
@@ -525,11 +525,12 @@
             `;
         }
 
-        function showRecentAnnouncements() {
+        async function showRecentAnnouncements() {
             const container = document.getElementById('recentAnnouncements');
             if (!container) return;
 
-            const announcements = Announcements.getAll().slice(0, 3);
+            const all = await Announcements.getAll();
+            const announcements = all.slice(0, 3);
             if (announcements.length === 0) {
                 container.innerHTML = '<p class="text-muted">Henüz duyuru yok.</p>';
                 return;
@@ -537,7 +538,7 @@
 
             let html = '';
             announcements.forEach(a => {
-                html += `<div class="announcement-card mb-3"><div class="announcement-header"><h4>${a.title}</h4><span class="text-sm text-muted">${formatDate(a.createdAt)}</span></div><p class="text-sm">${a.content.substring(0, 100)}${a.content.length > 100 ? '...' : ''}</p></div>`;
+                html += `<div class="announcement-card mb-3"><div class="announcement-header"><h4>${a.title}</h4><span class="text-sm text-muted">${formatDate(a.date)}</span></div><p class="text-sm">${a.content.substring(0, 100)}${a.content.length > 100 ? '...' : ''}</p></div>`;
             });
             container.innerHTML = html;
         }

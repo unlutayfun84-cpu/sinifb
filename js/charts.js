@@ -22,8 +22,8 @@ const Charts = {
     },
 
     // Öğrenci performans verisi hesapla
-    getStudentPerformanceData(studentId) {
-        const evals = WeeklyEval.getByStudent(studentId);
+    async getStudentPerformanceData(studentId) {
+        const evals = await WeeklyEvaluation.getByStudent(studentId);
         if (evals.length === 0) return null;
 
         const subjects = Curriculum.getAllSubjects();
@@ -34,7 +34,7 @@ const Charts = {
         };
 
         subjects.forEach((subj, index) => {
-            const scores = evals.map(e => e.subjects[subj.key]?.score || 0).filter(s => s > 0);
+            const scores = evals.map(e => e.subjects[subj.name] || 0).filter(s => s > 0);
             const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
             data.labels.push(subj.name);
@@ -46,9 +46,9 @@ const Charts = {
     },
 
     // Sınıf haftalık ortalamalar
-    getClassWeeklyAverages() {
-        const students = Students.getAll();
-        if (students.length === 0) return null;
+    async getClassWeeklyAverages() {
+        const students = await Students.getAll();
+        if (!Array.isArray(students) || students.length === 0) return null;
 
         const weeks = Curriculum.getAllWeeks();
         const data = {
@@ -56,16 +56,18 @@ const Charts = {
             averages: []
         };
 
+        const allEvals = await WeeklyEvaluation.getAll();
+
         weeks.forEach(week => {
             let weekTotal = 0;
             let weekCount = 0;
 
             students.forEach(student => {
-                const eval_ = WeeklyEval.getByStudentAndWeek(student.id, week.week);
-                if (eval_) {
+                const ev_ = allEvals.find(e => e.studentId === student.id && e.week === week.week);
+                if (ev_) {
                     const subjects = Curriculum.getAllSubjects();
                     subjects.forEach(subj => {
-                        const score = eval_.subjects[subj.key]?.score || 0;
+                        const score = ev_.subjects[subj.name] || 0;
                         if (score > 0) {
                             weekTotal += score;
                             weekCount++;
@@ -84,31 +86,35 @@ const Charts = {
     },
 
     // Zayıf konuları tespit et
-    getWeakTopics(threshold = 3) {
-        const students = Students.getAll();
+    async getWeakTopics(threshold = 3) {
+        const students = await Students.getAll();
+        if (!Array.isArray(students)) return []; // Safety check
+
         const subjects = Curriculum.getAllSubjects();
         const weakTopics = [];
 
-        students.forEach(student => {
-            const evals = WeeklyEval.getByStudent(student.id);
+        const allEvals = await WeeklyEvaluation.getAll();
 
-            evals.forEach(eval_ => {
-                const weekInfo = Curriculum.getWeek(eval_.week);
-                const topics = Curriculum.getWeekTopics(eval_.week);
+        students.forEach(student => {
+            const evals = allEvals.filter(e => e.studentId === student.id);
+
+            evals.forEach(ev_ => {
+                const weekInfo = Curriculum.getWeek(ev_.week);
+                const topics = Curriculum.getWeekTopics(ev_.week);
 
                 subjects.forEach(subj => {
-                    const score = eval_.subjects[subj.key]?.score || 0;
+                    const score = ev_.subjects[subj.name] || 0;
                     if (score > 0 && score < threshold) {
                         weakTopics.push({
                             studentName: student.name,
                             studentId: student.id,
-                            week: eval_.week,
+                            week: ev_.week,
                             weekDates: weekInfo?.dates || '',
                             subject: subj.name,
                             subjectIcon: subj.icon,
                             topic: topics[subj.key]?.topic || '',
                             score: score,
-                            note: eval_.subjects[subj.key]?.note || ''
+                            note: ''
                         });
                     }
                 });
@@ -120,11 +126,11 @@ const Charts = {
     },
 
     // Bireysel öğrenci radar chart
-    renderStudentRadarChart(studentId) {
+    async renderStudentRadarChart(studentId) {
         const canvas = document.getElementById('studentRadarChart');
         if (!canvas) return;
 
-        const data = this.getStudentPerformanceData(studentId);
+        const data = await this.getStudentPerformanceData(studentId);
         if (!data) {
             canvas.style.display = 'none';
             return;
@@ -180,11 +186,11 @@ const Charts = {
     },
 
     // Sınıf geneli haftalık chart
-    renderClassWeeklyChart() {
+    async renderClassWeeklyChart() {
         const canvas = document.getElementById('classWeeklyChart');
         if (!canvas) return;
 
-        const data = this.getClassWeeklyAverages();
+        const data = await this.getClassWeeklyAverages();
         if (!data || data.labels.length === 0) {
             canvas.style.display = 'none';
             return;
@@ -240,11 +246,11 @@ const Charts = {
     },
 
     // Zayıf konular listesi render
-    renderWeakTopicsList() {
+    async renderWeakTopicsList() {
         const container = document.getElementById('weakTopicsContainer');
         if (!container) return;
 
-        const weakTopics = this.getWeakTopics(3);
+        const weakTopics = await this.getWeakTopics(3);
 
         if (weakTopics.length === 0) {
             container.innerHTML = showEmptyState('🎉', 'Harika!', 'Tüm öğrenciler konuları başarıyla öğreniyor.');
@@ -295,34 +301,48 @@ const Charts = {
 };
 
 // Genel değerlendirme sayfasını başlat
-function initializeGeneralEvaluation() {
-    const students = Students.getAll();
+async function initializeGeneralEvaluation() {
+    const students = await Students.getAll();
 
-    if (students.length === 0) {
-        document.getElementById('generalEvalContent').innerHTML =
-            showEmptyState('👥', 'Henüz öğrenci yok', 'Önce öğrenci ekleyin.');
+    if (!Array.isArray(students) || students.length === 0) {
+        if (document.getElementById('generalEvalContent')) {
+            document.getElementById('generalEvalContent').innerHTML =
+                showEmptyState('👥', 'Henüz öğrenci yok', 'Önce öğrenci ekleyin.');
+        }
         return;
     }
 
     // Öğrenci seçici doldur
     const select = document.getElementById('studentSelectForChart');
     if (select) {
-        select.innerHTML = '<option value="">-- Öğrenci Seçin --</option>';
-        students.forEach(s => {
-            select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
-        });
+        select.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '-- Öğrenci Seçin --';
+        select.appendChild(defaultOption);
+
+        console.log('Charts.js: initializeGeneralEvaluation - Students:', students);
+
+        if (Array.isArray(students)) {
+            students.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.id;
+                option.textContent = s.name;
+                select.appendChild(option);
+            });
+        }
     }
 
     // Grafikleri render et
-    Charts.renderClassWeeklyChart();
-    Charts.renderWeakTopicsList();
+    await Charts.renderClassWeeklyChart();
+    await Charts.renderWeakTopicsList();
 }
 
 // Öğrenci seçildiğinde radar chart göster
-function onStudentSelectForChart(selectElement) {
+async function onStudentSelectForChart(selectElement) {
     const studentId = selectElement.value;
     if (studentId) {
-        Charts.renderStudentRadarChart(studentId);
+        await Charts.renderStudentRadarChart(studentId);
     } else {
         const canvas = document.getElementById('studentRadarChart');
         if (canvas) canvas.style.display = 'none';
