@@ -185,9 +185,12 @@ const SupabaseDB = {
             id: h.id,
             title: h.title,
             description: h.description,
+            subject: h.subject || '',
+            fileData: h.file_data || null,
+            fileName: h.file_name || '',
             dueDate: h.due_date,
             assignedDate: h.assigned_date,
-            studentIds: h.student_ids
+            studentIds: h.student_ids || []
         }));
     },
 
@@ -197,9 +200,12 @@ const SupabaseDB = {
             id: homework.id,
             title: homework.title,
             description: homework.description,
+            subject: homework.subject || '',
+            file_data: homework.fileData || null,
+            file_name: homework.fileName || '',
             due_date: homework.dueDate,
             assigned_date: homework.assignedDate,
-            student_ids: homework.studentIds
+            student_ids: homework.studentIds || []
         }]).select();
         if (error) throw error;
         return data[0];
@@ -210,6 +216,9 @@ const SupabaseDB = {
         const dbUpdates = {};
         if (updates.title) dbUpdates.title = updates.title;
         if (updates.description !== undefined) dbUpdates.description = updates.description;
+        if (updates.subject !== undefined) dbUpdates.subject = updates.subject;
+        if (updates.fileData !== undefined) dbUpdates.file_data = updates.fileData;
+        if (updates.fileName !== undefined) dbUpdates.file_name = updates.fileName;
         if (updates.dueDate) dbUpdates.due_date = updates.dueDate;
         if (updates.studentIds) dbUpdates.student_ids = updates.studentIds;
 
