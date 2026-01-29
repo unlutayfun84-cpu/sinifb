@@ -137,12 +137,28 @@ async function openAddPortfolioModal() {
     document.getElementById('portfolioId').value = '';
     document.getElementById('imagePreview').innerHTML = '';
 
+    // Öğrenci listesini doldur
     const students = await Students.getAll();
     const select = document.getElementById('portfolioStudent');
     select.innerHTML = '<option value="">-- Öğrenci Seçin --</option>';
     students.forEach(s => {
         select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
     });
+
+    // Kategori listesini doldur
+    const categorySelect = document.getElementById('portfolioCategory');
+    if (categorySelect) {
+        categorySelect.innerHTML = `
+            <option value="">-- Kategori Seçin --</option>
+            <option value="Sanat">🎨 Sanat</option>
+            <option value="Fen">🔬 Fen</option>
+            <option value="Matematik">🔢 Matematik</option>
+            <option value="Türkçe">📖 Türkçe</option>
+            <option value="Müzik">🎵 Müzik</option>
+            <option value="Beden Eğitimi">⚽ Beden Eğitimi</option>
+            <option value="Diğer">📁 Diğer</option>
+        `;
+    }
 
     showModal('portfolioModal');
 }
@@ -153,22 +169,36 @@ async function editPortfolio(id) {
 
     document.getElementById('portfolioModalTitle').textContent = '✏️ Portfolyo Düzenle';
     document.getElementById('portfolioId').value = item.id;
-    document.getElementById('portfolioStudent').value = item.studentId;
     document.getElementById('portfolioTitle').value = item.title;
     document.getElementById('portfolioDescription').value = item.description;
-    document.getElementById('portfolioCategory').value = item.category;
-    document.getElementById('portfolioShare').checked = item.sharedWithParent;
+    document.getElementById('shareWithParent').checked = item.sharedWithParent;
 
     if (item.imageData) {
         document.getElementById('imagePreview').innerHTML = `<img src="${item.imageData}" alt="Preview" style="max-width: 200px;">`;
     }
 
+    // Öğrenci listesini doldur
     const students = await Students.getAll();
     const select = document.getElementById('portfolioStudent');
     select.innerHTML = '<option value="">-- Öğrenci Seçin --</option>';
     students.forEach(s => {
         select.innerHTML += `<option value="${s.id}" ${s.id === item.studentId ? 'selected' : ''}>${s.name}</option>`;
     });
+
+    // Kategori listesini doldur
+    const categorySelect = document.getElementById('portfolioCategory');
+    if (categorySelect) {
+        categorySelect.innerHTML = `
+            <option value="">-- Kategori Seçin --</option>
+            <option value="Sanat" ${item.category === 'Sanat' ? 'selected' : ''}>🎨 Sanat</option>
+            <option value="Fen" ${item.category === 'Fen' ? 'selected' : ''}>🔬 Fen</option>
+            <option value="Matematik" ${item.category === 'Matematik' ? 'selected' : ''}>🔢 Matematik</option>
+            <option value="Türkçe" ${item.category === 'Türkçe' ? 'selected' : ''}>📖 Türkçe</option>
+            <option value="Müzik" ${item.category === 'Müzik' ? 'selected' : ''}>🎵 Müzik</option>
+            <option value="Beden Eğitimi" ${item.category === 'Beden Eğitimi' ? 'selected' : ''}>⚽ Beden Eğitimi</option>
+            <option value="Diğer" ${item.category === 'Diğer' ? 'selected' : ''}>📁 Diğer</option>
+        `;
+    }
 
     showModal('portfolioModal');
 }
@@ -181,7 +211,7 @@ async function savePortfolio(event) {
     const title = document.getElementById('portfolioTitle').value.trim();
     const description = document.getElementById('portfolioDescription').value.trim();
     const category = document.getElementById('portfolioCategory').value;
-    const sharedWithParent = document.getElementById('portfolioShare').checked;
+    const sharedWithParent = document.getElementById('shareWithParent').checked;
 
     if (!studentId || !title || !category) {
         showToast('Lütfen tüm alanları doldurun!', 'error');
