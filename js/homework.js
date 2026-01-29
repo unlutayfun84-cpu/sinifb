@@ -16,6 +16,9 @@ const Homework = {
             id: generateId(),
             title: data.title.trim(),
             description: data.description ? data.description.trim() : '',
+            subject: data.subject || '',
+            fileData: data.fileData || null,
+            fileName: data.fileName || '',
             dueDate: data.dueDate,
             assignedDate: getToday(),
             studentIds: data.studentIds || []
@@ -28,6 +31,9 @@ const Homework = {
         const updates = {};
         if (data.title) updates.title = data.title.trim();
         if (data.description !== undefined) updates.description = data.description.trim();
+        if (data.subject !== undefined) updates.subject = data.subject;
+        if (data.fileData !== undefined) updates.fileData = data.fileData;
+        if (data.fileName !== undefined) updates.fileName = data.fileName;
         if (data.dueDate) updates.dueDate = data.dueDate;
         if (data.studentIds) updates.studentIds = data.studentIds;
 
@@ -57,12 +63,19 @@ async function renderHomeworkList() {
         return;
     }
 
+    // Ders bilgilerini al
+    const allSubjects = Curriculum.getAllSubjects();
+
     let html = '<div class="homework-list">';
     homeworks.forEach(hw => {
         const studentNames = hw.studentIds.map(id => {
             const s = students.find(st => st.id === id);
             return s ? s.name : '';
         }).filter(n => n).join(', ');
+
+        // Ders bilgisini bul
+        const subjectInfo = hw.subject ? allSubjects.find(s => s.key === hw.subject) : null;
+        const subjectDisplay = subjectInfo ? `${subjectInfo.icon} ${subjectInfo.name}` : '';
 
         const isOverdue = hw.dueDate < getToday();
         html += `
@@ -77,7 +90,14 @@ async function renderHomeworkList() {
                         <button class="btn btn-sm btn-ghost text-danger" onclick="deleteHomework('${hw.id}')">🗑️</button>
                     </div>
                 </div>
+                ${subjectDisplay ? `<p class="text-primary"><strong>${subjectDisplay}</strong></p>` : ''}
                 <p class="text-muted">${hw.description || 'Açıklama yok'}</p>
+                ${hw.fileName ? `
+                    <div class="homework-file" style="margin: 8px 0; padding: 8px; background: var(--bg-secondary); border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                        <span>${hw.fileName.endsWith('.pdf') ? '📄' : '📷'}</span>
+                        <a href="${hw.fileData}" download="${hw.fileName}" style="color: var(--primary); text-decoration: underline;">${hw.fileName}</a>
+                    </div>
+                ` : ''}
                 <div class="homework-meta">
                     <span>📅 Son Tarih: ${formatDate(hw.dueDate)}</span>
                     <span>👥 ${hw.studentIds.length} öğrenci</span>
@@ -132,10 +152,73 @@ async function openAddHomeworkModal() {
     document.getElementById('homeworkId').value = '';
     document.getElementById('homeworkDueDate').value = getToday();
 
+    // Ders listesini doldur
+    const subjectSelect = document.getElementById('homeworkSubject');
+    if (subjectSelect) {
+        subjectSelect.innerHTML = '<option value="">-- Ders Seçin --</option>';
+        const subjects = Curriculum.getAllSubjects();
+        subjects.forEach(subject => {
+            const option = document.createElement('option');
+            option.value = subject.key;
+            option.textContent = `${subject.icon} ${subject.name}`;
+            subjectSelect.appendChild(option);
+        });
+    }
+
+    // Dosya önizleme alanını temizle
+    const filePreview = document.getElementById('homeworkFilePreview');
+    if (filePreview) {
+        filePreview.innerHTML = '';
+    }
+
+    // Dosya input'unu temizle
+    const fileInput = document.getElementById('homeworkFile');
+    if (fileInput) {
+        fileInput.value = '';
+    }
+
     const students = await Students.getAll();
     document.getElementById('homeworkStudentCheckboxContainer').innerHTML = createStudentCheckboxList(students, []);
     showModal('homeworkModal');
 }
+
+// Dosya önizleme fonksiyonu
+function setupHomeworkFilePreview() {
+    const fileInput = document.getElementById('homeworkFile');
+    const preview = document.getElementById('homeworkFilePreview');
+
+    if (fileInput && preview) {
+        fileInput.addEventListener('change', function (e) {
+            preview.innerHTML = '';
+            const file = e.target.files[0];
+
+            if (file) {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        preview.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--bg-secondary); border-radius: 8px;">
+                                <img src="${e.target.result}" style="max-width: 100px; max-height: 100px; border-radius: 4px;">
+                                <span>📷 ${file.name}</span>
+                            </div>
+                        `;
+                    };
+                    reader.readAsDataURL(file);
+                } else if (file.type === 'application/pdf') {
+                    preview.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--bg-secondary); border-radius: 8px;">
+                            <span style="font-size: 2rem;">📄</span>
+                            <span>${file.name}</span>
+                        </div>
+                    `;
+                }
+            }
+        });
+    }
+}
+
+// Sayfa yüklendiğinde dosya önizleme eventini ayarla
+document.addEventListener('DOMContentLoaded', setupHomeworkFilePreview);
 
 // Öğrenci seçim bölümünü göster/gizle
 async function toggleHomeworkStudentSelection() {
@@ -177,6 +260,8 @@ async function saveHomework(event) {
     const title = document.getElementById('homeworkTitle').value.trim();
     const description = document.getElementById('homeworkDescription').value.trim();
     const dueDate = document.getElementById('homeworkDueDate').value;
+    const subject = document.getElementById('homeworkSubject').value;
+    const fileInput = document.getElementById('homeworkFile');
 
     if (!title || !dueDate) {
         showToast('Lütfen tüm alanları doldurun!', 'error');
@@ -202,12 +287,28 @@ async function saveHomework(event) {
         return;
     }
 
+    // Dosya verisi hazırla
+    let fileData = null;
+    let fileName = '';
+
+    if (fileInput && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        fileName = file.name;
+        try {
+            fileData = await imageToBase64(file);
+        } catch (err) {
+            console.error('File read error:', err);
+            showToast('Dosya okunamadı: ' + err.message, 'error');
+            return;
+        }
+    }
+
     try {
         if (id) {
-            await Homework.update(id, { title, description, dueDate, studentIds });
+            await Homework.update(id, { title, description, subject, fileData, fileName, dueDate, studentIds });
             showToast('Ödev güncellendi!');
         } else {
-            await Homework.add({ title, description, dueDate, studentIds });
+            await Homework.add({ title, description, subject, fileData, fileName, dueDate, studentIds });
             showToast('Ödev oluşturuldu!');
         }
 
