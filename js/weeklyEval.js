@@ -167,7 +167,6 @@ async function openWeeklyEvalModal(studentId) {
 
     const titleEl = document.getElementById('weeklyEvalModalTitle');
     if (titleEl) {
-        // Element varsa başlığı güncelle, yoksa hata vermeden geç
         titleEl.textContent = `📊 ${student.name} - Haftalık Değerlendirme`;
     } else {
         console.warn('WeeklyEval: weeklyEvalModalTitle element not found');
@@ -175,10 +174,25 @@ async function openWeeklyEvalModal(studentId) {
     document.getElementById('weeklyEvalForm').reset();
     document.getElementById('weeklyEvalStudentId').value = studentId;
 
-    // Hafta numarasını otomatik belirle
+    // Hafta dropdown'ını doldur
+    const weekSelect = document.getElementById('weeklyEvalWeek');
+    const allWeeks = Curriculum.getAllWeeks();
     const existingEvals = await WeeklyEvaluation.getByStudent(studentId);
-    const nextWeek = existingEvals.length > 0 ? Math.max(...existingEvals.map(e => e.week)) + 1 : 1;
-    document.getElementById('weeklyEvalWeek').value = nextWeek;
+    const existingWeeks = existingEvals.map(e => e.week);
+
+    // Mevcut haftayı hesapla
+    const currentWeek = Curriculum.getCurrentWeek();
+
+    weekSelect.innerHTML = '<option value="">-- Hafta Seçin --</option>';
+    allWeeks.forEach(w => {
+        const hasEval = existingWeeks.includes(w.week);
+        const isCurrent = w.week === currentWeek;
+        weekSelect.innerHTML += `
+            <option value="${w.week}" ${isCurrent ? 'selected' : ''}>
+                Hafta ${w.week} - ${w.dates} ${hasEval ? '✅' : ''} ${isCurrent ? '(Bu Hafta)' : ''}
+            </option>
+        `;
+    });
 
     // Ders listesini yükle
     loadSubjectInputs();
@@ -195,7 +209,24 @@ async function editWeeklyEval(id) {
 
     document.getElementById('weeklyEvalModalTitle').textContent = `✏️ ${student?.name || 'Öğrenci'} - Değerlendirme Düzenle`;
     document.getElementById('weeklyEvalStudentId').value = evaluation.studentId;
-    document.getElementById('weeklyEvalWeek').value = evaluation.week;
+
+    // Hafta dropdown'ını doldur
+    const weekSelect = document.getElementById('weeklyEvalWeek');
+    const allWeeks = Curriculum.getAllWeeks();
+    const existingEvals = await WeeklyEvaluation.getByStudent(evaluation.studentId);
+    const existingWeeks = existingEvals.map(e => e.week);
+
+    weekSelect.innerHTML = '<option value="">-- Hafta Seçin --</option>';
+    allWeeks.forEach(w => {
+        const hasEval = existingWeeks.includes(w.week);
+        const isSelected = w.week === evaluation.week;
+        weekSelect.innerHTML += `
+            <option value="${w.week}" ${isSelected ? 'selected' : ''}>
+                Hafta ${w.week} - ${w.dates} ${hasEval ? '✅' : ''}
+            </option>
+        `;
+    });
+
     document.getElementById('weeklyEvalLearned').value = evaluation.learned;
     document.getElementById('weeklyEvalNeedsWork').value = evaluation.toImprove;
 
