@@ -212,11 +212,12 @@ function loadSubjectInputs(existingScores = {}) {
     subjects.forEach(subject => {
         const score = existingScores[subject] || 3;
         html += `
-            <div class="subject-input-group">
-                <label>${subject}</label>
-                <div class="star-rating" data-subject="${subject}">
+            <div class="subject-input-group" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; margin-bottom: 8px; background: var(--gray-50); border-radius: 8px;">
+                <label style="font-weight: 500; min-width: 120px;">${subject}</label>
+                <div class="star-rating" data-subject="${subject}" style="display: flex; gap: 4px;">
                     ${[1, 2, 3, 4, 5].map(star => `
                         <span class="star ${star <= score ? 'active' : ''}" 
+                              style="cursor: pointer; font-size: 1.5rem; transition: transform 0.2s;"
                               onclick="setStarRating('${subject}', ${star})">⭐</span>
                     `).join('')}
                 </div>
